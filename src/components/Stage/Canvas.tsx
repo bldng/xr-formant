@@ -1,34 +1,6 @@
-import {
-  Canvas as R3FCanvas,
-  type ThreeElements,
-  useFrame,
-} from "@react-three/fiber";
-import { useRef, useState } from "react";
-import * as THREE from "three";
-
-function Box(props: ThreeElements["mesh"]) {
-  // This reference gives us direct access to the THREE.Mesh object
-  const ref = useRef<THREE.Mesh>(null!);
-  // Hold state for hovered and clicked events
-  const [hovered, hover] = useState(false);
-  const [clicked, click] = useState(false);
-  // Subscribe this component to the render-loop, rotate the mesh every frame
-  useFrame((_, delta) => (ref.current.rotation.x += delta));
-  // Return the view, these are regular Threejs elements expressed in JSX
-  return (
-    <mesh
-      {...props}
-      ref={ref}
-      scale={clicked ? 1.5 : 1}
-      onClick={() => click(!clicked)}
-      onPointerOver={() => hover(true)}
-      onPointerOut={() => hover(false)}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? "hotpink" : "orange"} />
-    </mesh>
-  );
-}
+import { OrbitControls, Stage } from "@react-three/drei";
+import { Canvas as R3FCanvas } from "@react-three/fiber";
+import { ModelRenderer } from "../ModelLoader";
 
 export const Canvas = () => (
   <R3FCanvas className="w-full h-full">
@@ -41,7 +13,9 @@ export const Canvas = () => (
       intensity={Math.PI}
     />
     <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} />
-    <Box position={[-1.2, 0, 0]} />
-    <Box position={[1.2, 0, 0]} />
+    <Stage>
+      <ModelRenderer></ModelRenderer>
+    </Stage>
+    <OrbitControls />
   </R3FCanvas>
 );

@@ -22,7 +22,9 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 }
 
 // Context for sharing model state between components
+import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { createContext, useContext } from "react";
+import { Player } from "./Stage/Player";
 
 interface ModelContextType {
   models: Array<{ url: string; position: [number, number, number] }>;
@@ -148,17 +150,30 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
 
   return (
     <>
-      {models.map((model, index) => {
-        console.log(`Rendering model ${index}:`, model);
-        return (
-          <GLTFModel
-            key={`${model.url}-${index}`}
-            url={model.url}
-            position={model.position}
-          />
-        );
-      })}
-      {children}
+      <Physics>
+        <RigidBody type="fixed">
+          {models.map((model, index) => {
+            console.log(`Rendering model ${index}:`, model);
+            return (
+              <GLTFModel
+                key={`${model.url}-${index}`}
+                url={model.url}
+                position={model.position}
+              />
+            );
+          })}
+        </RigidBody>
+
+        {models.length && <Player />}
+        {children}
+        <RigidBody type="fixed" position={[0, -2, 0]}>
+          <CuboidCollider args={[50, 1, 50]} />
+          <mesh>
+            <boxGeometry args={[100, 2, 100]} />
+            <meshStandardMaterial color="green" />
+          </mesh>
+        </RigidBody>
+      </Physics>
     </>
   );
 }

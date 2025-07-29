@@ -36,7 +36,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 
   return (
     <RigidBody type="fixed" position={position} colliders="trimesh">
-      <group ref={modelRef}>
+      <group ref={modelRef} receiveShadow>
         <primitive object={clonedScene} />
       </group>
     </RigidBody>
@@ -180,7 +180,7 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
           <CuboidCollider args={[25, 0.5, 25]} />
           <mesh>
             <boxGeometry args={[50, 1, 50]} />
-            <meshStandardMaterial color="green" />
+            <meshStandardMaterial color="white" />
           </mesh>
         </RigidBody>
       </Physics>

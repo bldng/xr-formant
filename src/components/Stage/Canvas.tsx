@@ -1,5 +1,6 @@
 import { KeyboardControls, OrbitControls, Stage } from "@react-three/drei";
 import { Canvas as R3FCanvas } from "@react-three/fiber";
+import { CameraHUD } from "../CameraHUD";
 import { ModelRenderer } from "../ModelLoader";
 
 type Controls = {
@@ -25,8 +26,11 @@ const keyboardMap = [
 
 export const Canvas = () => (
   <KeyboardControls map={keyboardMap}>
-    <R3FCanvas className="w-full h-full">
-      <ambientLight intensity={Math.PI / 2} />
+    <R3FCanvas
+      className="w-full h-full"
+      camera={{ isOrthographicCamera: false }}
+    >
+      {/* <ambientLight intensity={Math.PI / 2} />
       <spotLight
         position={[10, 10, 10]}
         angle={0.15}
@@ -34,12 +38,23 @@ export const Canvas = () => (
         decay={0}
         intensity={Math.PI}
       />
-      <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} />
-      <Stage>
+      <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} /> */}
+      <Stage
+        environment={{
+          preset: "sunset",
+          blur: 10,
+          background: true,
+        }}
+        preset="rembrandt"
+        shadows={true}
+        intensity={0.5}
+        adjustCamera={true}
+      >
         <ModelRenderer>
           <></>
         </ModelRenderer>
       </Stage>
+      <CameraHUD />
       <OrbitControls />
     </R3FCanvas>
   </KeyboardControls>

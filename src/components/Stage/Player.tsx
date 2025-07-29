@@ -35,7 +35,7 @@ export function Player() {
       lockRotations={true}
     >
       <CuboidCollider args={[0.5, 1, 0.5]} />
-      <mesh>
+      <mesh name="player">
         <boxGeometry args={[1, 2, 1]} />
         <meshBasicMaterial color="blue" />
       </mesh>

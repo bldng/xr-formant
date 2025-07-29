@@ -1,6 +1,14 @@
 import { useGLTF } from "@react-three/drei";
-import { useCallback, useRef, useState } from "react";
+import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
+import { Player } from "./Stage/Player";
 
 interface GLTFModelProps {
   url: string;
@@ -14,17 +22,42 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 
   console.log("GLTF scene loaded:", scene);
 
-  return (
-    <group ref={modelRef} position={position}>
-      <primitive object={scene.clone()} />
-    </group>
-  );
-}
+  // Clone and center the model
+  const clonedScene = scene.clone();
 
-// Context for sharing model state between components
-import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
-import { createContext, useContext } from "react";
-import { Player } from "./Stage/Player";
+  // Calculate bounding box and center the model
+  const box = new THREE.Box3().setFromObject(clonedScene);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+
+  // Center the model at origin
+  clonedScene.position.copy(center).multiplyScalar(-1);
+
+  // Calculate collider size based on model bounds
+  const colliderSize: [number, number, number] = [
+    Math.max(size.x / 2, 0.1),
+    Math.max(size.y / 2, 0.1),
+    Math.max(size.z / 2, 0.1),
+  ];
+
+  console.log(
+    "Model size:",
+    size,
+    "Collider size:",
+    colliderSize,
+    "Center offset:",
+    center
+  );
+
+  return (
+    <RigidBody type="dynamic" position={position}>
+      <CuboidCollider args={colliderSize} />
+      <group ref={modelRef}>
+        <primitive object={clonedScene} />
+      </group>
+    </RigidBody>
+  );
+} // Context for sharing model state between components
 
 interface ModelContextType {
   models: Array<{ url: string; position: [number, number, number] }>;
@@ -41,7 +74,6 @@ export function useModels() {
   return context;
 }
 
-// Provider component (goes outside Canvas)
 export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [models, setModels] = useState<
     Array<{ url: string; position: [number, number, number] }>
@@ -51,11 +83,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     console.log("Adding model with URL:", url);
     const newModel = {
       url,
-      position: [
-        (Math.random() - 0.5) * 4,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 4,
-      ] as [number, number, number],
+      position: [0, 2, 0] as [number, number, number], // Spawn at origin, 2 units above ground
     };
     console.log("New model:", newModel);
     setModels((prev) => {
@@ -151,25 +179,23 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
   return (
     <>
       <Physics>
-        <RigidBody type="fixed">
-          {models.map((model, index) => {
-            console.log(`Rendering model ${index}:`, model);
-            return (
-              <GLTFModel
-                key={`${model.url}-${index}`}
-                url={model.url}
-                position={model.position}
-              />
-            );
-          })}
-        </RigidBody>
+        {models.map((model, index) => {
+          console.log(`Rendering model ${index}:`, model);
+          return (
+            <GLTFModel
+              key={`${model.url}-${index}`}
+              url={model.url}
+              position={model.position}
+            />
+          );
+        })}
 
-        {models.length && <Player />}
+        <Player />
         {children}
-        <RigidBody type="fixed" position={[0, -2, 0]}>
-          <CuboidCollider args={[50, 1, 50]} />
+        <RigidBody type="fixed" position={[0, -1.5, 0]}>
+          <CuboidCollider args={[25, 0.5, 25]} />
           <mesh>
-            <boxGeometry args={[100, 2, 100]} />
+            <boxGeometry args={[50, 1, 50]} />
             <meshStandardMaterial color="green" />
           </mesh>
         </RigidBody>

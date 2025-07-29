@@ -28,10 +28,10 @@ export function Player() {
   });
 
   return (
-    <RigidBody ref={playerRef} type="dynamic" position={[0, 1, 0]}>
+    <RigidBody ref={playerRef} type="dynamic" position={[0, 0, 0]}>
       <CuboidCollider args={[0.5, 1, 0.5]} />
       <mesh>
-        <capsuleGeometry args={[0.5, 1]} />
+        <boxGeometry args={[1, 2, 1]} />
         <meshBasicMaterial color="blue" />
       </mesh>
     </RigidBody>

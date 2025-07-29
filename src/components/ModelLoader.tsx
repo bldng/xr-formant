@@ -28,30 +28,14 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   // Calculate bounding box and center the model
   const box = new THREE.Box3().setFromObject(clonedScene);
   const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
 
   // Center the model at origin
   clonedScene.position.copy(center).multiplyScalar(-1);
 
-  // Calculate collider size based on model bounds
-  const colliderSize: [number, number, number] = [
-    Math.max(size.x / 2, 0.1),
-    Math.max(size.y / 2, 0.1),
-    Math.max(size.z / 2, 0.1),
-  ];
-
-  console.log(
-    "Model size:",
-    size,
-    "Collider size:",
-    colliderSize,
-    "Center offset:",
-    center
-  );
+  console.log("Model centered, center offset:", center);
 
   return (
-    <RigidBody type="dynamic" position={position}>
-      <CuboidCollider args={colliderSize} />
+    <RigidBody type="fixed" position={position} colliders="trimesh">
       <group ref={modelRef}>
         <primitive object={clonedScene} />
       </group>
@@ -83,7 +67,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     console.log("Adding model with URL:", url);
     const newModel = {
       url,
-      position: [0, 2, 0] as [number, number, number], // Spawn at origin, 2 units above ground
+      position: [0, 3, 0] as [number, number, number], // Spawn at origin, 2 units above ground
     };
     console.log("New model:", newModel);
     setModels((prev) => {

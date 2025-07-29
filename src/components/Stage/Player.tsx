@@ -28,7 +28,12 @@ export function Player() {
   });
 
   return (
-    <RigidBody ref={playerRef} type="dynamic" position={[0, 0, 0]}>
+    <RigidBody
+      ref={playerRef}
+      type="dynamic"
+      position={[0, 0, 0]}
+      lockRotations={true}
+    >
       <CuboidCollider args={[0.5, 1, 0.5]} />
       <mesh>
         <boxGeometry args={[1, 2, 1]} />

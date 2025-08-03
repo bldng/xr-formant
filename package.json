@@ -13,6 +13,8 @@
     "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.2.0",
     "@react-three/rapier": "^2.1.0",
+    "@tanstack/react-router": "^1.130.12",
+    "@tanstack/router-devtools": "^1.130.13",
     "@types/three": "^0.178.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

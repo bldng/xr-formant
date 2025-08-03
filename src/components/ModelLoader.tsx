@@ -50,6 +50,7 @@ interface ModelContextType {
 
 const ModelContext = createContext<ModelContextType | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useModels() {
   const context = useContext(ModelContext);
   if (!context) {
@@ -206,7 +207,7 @@ export function ModelFileInput() {
   };
 
   return (
-    <div className="fixed top-4 left-4 z-20">
+    <div className="absolute top-4 left-4 z-20">
       <button
         onClick={() => fileInputRef.current?.click()}
         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"

@@ -4,11 +4,30 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
 import * as THREE from "three";
 import { Player } from "./Stage/Player";
+
+// GLTF type definitions
+interface GLTFBuffer {
+  uri?: string;
+  byteLength: number;
+}
+
+interface GLTFImage {
+  uri?: string;
+  mimeType?: string;
+  bufferView?: number;
+}
+
+interface GLTFData {
+  buffers?: GLTFBuffer[];
+  images?: GLTFImage[];
+  [key: string]: unknown;
+}
 
 interface GLTFModelProps {
   url: string;
@@ -91,18 +110,81 @@ export function ModelDropZone() {
   const [isDragging, setIsDragging] = useState(false);
   const { addModel } = useModels();
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  // Prevent default browser drag/drop behavior globally
+  const preventDefaults = useCallback((e: Event) => {
     e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleGlobalDragEnter = useCallback((e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleGlobalDragOver = useCallback((e: Event) => {
     e.preventDefault();
-    setIsDragging(false);
+    e.stopPropagation();
+    setIsDragging(true);
   }, []);
 
+  const handleGlobalDragLeave = useCallback((e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only hide if we're leaving the document
+    if (e.target === document.body || e.target === document.documentElement) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleLocalDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleLocalDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only hide if we're actually leaving the drop zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  // Set up global event listeners to prevent browser default behavior
+  useEffect(() => {
+    const events = ["dragenter", "dragover", "dragleave", "drop"];
+
+    events.forEach((eventName) => {
+      document.addEventListener(eventName, preventDefaults, false);
+    });
+
+    document.addEventListener("dragenter", handleGlobalDragEnter, false);
+    document.addEventListener("dragover", handleGlobalDragOver, false);
+    document.addEventListener("dragleave", handleGlobalDragLeave, false);
+
+    return () => {
+      events.forEach((eventName) => {
+        document.removeEventListener(eventName, preventDefaults, false);
+      });
+      document.removeEventListener("dragenter", handleGlobalDragEnter, false);
+      document.removeEventListener("dragover", handleGlobalDragOver, false);
+      document.removeEventListener("dragleave", handleGlobalDragLeave, false);
+    };
+  }, [
+    preventDefaults,
+    handleGlobalDragEnter,
+    handleGlobalDragOver,
+    handleGlobalDragLeave,
+  ]);
+
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
 
@@ -115,9 +197,79 @@ export function ModelDropZone() {
 
       if (gltfFile) {
         console.log("GLTF file found:", gltfFile.name);
-        const url = URL.createObjectURL(gltfFile);
-        console.log("Created URL:", url);
-        addModel(url);
+
+        // For GLB files (self-contained), we can use them directly
+        if (gltfFile.name.toLowerCase().endsWith(".glb")) {
+          const url = URL.createObjectURL(gltfFile);
+          console.log("Created GLB URL:", url);
+          addModel(url);
+          return;
+        }
+
+        // For GLTF files with external dependencies, we need to handle all files
+        try {
+          // Create a file map for all related files
+          const fileMap = new Map<string, File>();
+          files.forEach((file) => {
+            fileMap.set(file.name, file);
+          });
+
+          // Read the GLTF file content
+          const gltfContent = await gltfFile.text();
+          const gltfData: GLTFData = JSON.parse(gltfContent);
+
+          // Create blob URLs for all referenced files
+          const modifiedGltfData = { ...gltfData };
+
+          // Handle buffers (bin files)
+          if (modifiedGltfData.buffers) {
+            modifiedGltfData.buffers = await Promise.all(
+              modifiedGltfData.buffers.map(async (buffer: GLTFBuffer) => {
+                if (buffer.uri && !buffer.uri.startsWith("data:")) {
+                  const binFile = fileMap.get(buffer.uri);
+                  if (binFile) {
+                    const blobUrl = URL.createObjectURL(binFile);
+                    return { ...buffer, uri: blobUrl };
+                  }
+                }
+                return buffer;
+              })
+            );
+          }
+
+          // Handle images/textures
+          if (modifiedGltfData.images) {
+            modifiedGltfData.images = await Promise.all(
+              modifiedGltfData.images.map(async (image: GLTFImage) => {
+                if (image.uri && !image.uri.startsWith("data:")) {
+                  const imageFile = fileMap.get(image.uri);
+                  if (imageFile) {
+                    const blobUrl = URL.createObjectURL(imageFile);
+                    return { ...image, uri: blobUrl };
+                  }
+                }
+                return image;
+              })
+            );
+          }
+
+          // Create a new blob with the modified GLTF content
+          const modifiedGltfBlob = new Blob(
+            [JSON.stringify(modifiedGltfData)],
+            {
+              type: "application/json",
+            }
+          );
+          const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
+
+          console.log("Created modified GLTF URL:", gltfUrl);
+          addModel(gltfUrl);
+        } catch (error) {
+          console.error("Error processing GLTF files:", error);
+          // Fallback to simple URL creation
+          const url = URL.createObjectURL(gltfFile);
+          addModel(url);
+        }
       } else {
         console.log(
           "No GLTF file found in dropped files:",
@@ -133,8 +285,8 @@ export function ModelDropZone() {
       className={`fixed inset-0 pointer-events-none z-10 transition-all duration-300 ${
         isDragging ? "bg-blue-500/20 backdrop-blur-sm" : "bg-transparent"
       }`}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
+      onDragOver={handleLocalDragOver}
+      onDragLeave={handleLocalDragLeave}
       onDrop={handleDrop}
       style={{ pointerEvents: isDragging ? "auto" : "none" }}
     >
@@ -144,9 +296,11 @@ export function ModelDropZone() {
             <div className="text-center">
               <div className="text-4xl mb-4">📦</div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                Drop GLTF/GLB Model
+                Drop GLTF/GLB Model + Assets
               </h3>
-              <p className="text-gray-600">Release to load your 3D model</p>
+              <p className="text-gray-600">
+                Drop all files together (GLTF + BIN + textures) for best results
+              </p>
             </div>
           </div>
         </div>
@@ -194,13 +348,28 @@ export function ModelFileInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addModel, models } = useModels();
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
     if (
       file &&
       (file.name.toLowerCase().endsWith(".gltf") ||
         file.name.toLowerCase().endsWith(".glb"))
     ) {
+      // For GLB files (self-contained), we can use them directly
+      if (file.name.toLowerCase().endsWith(".glb")) {
+        const url = URL.createObjectURL(file);
+        addModel(url);
+        return;
+      }
+
+      // For GLTF files, we need to handle potential external dependencies
+      // Note: File input only gives us one file, so this is a fallback
+      console.warn(
+        "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
+      );
       const url = URL.createObjectURL(file);
       addModel(url);
     }
@@ -212,10 +381,13 @@ export function ModelFileInput() {
         onClick={() => fileInputRef.current?.click()}
         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
       >
-        Load Model
+        Load GLB Model
       </button>
       <div className="mt-2 text-sm text-white bg-black/50 px-2 py-1 rounded">
         Models loaded: {models.length}
+      </div>
+      <div className="mt-1 text-xs text-white/70 bg-black/30 px-2 py-1 rounded">
+        Tip: Drag & drop for GLTF + assets
       </div>
       <input
         ref={fileInputRef}

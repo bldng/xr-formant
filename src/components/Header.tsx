@@ -17,6 +17,13 @@ export function Header() {
             Model loader
           </Link>
           <Link
+            to="/audio"
+            className="text-white/80 hover:text-white transition-colors"
+            activeProps={{ className: "text-white font-semibold" }}
+          >
+            Audio
+          </Link>
+          <Link
             to="/about"
             className="text-white/80 hover:text-white transition-colors"
             activeProps={{ className: "text-white font-semibold" }}

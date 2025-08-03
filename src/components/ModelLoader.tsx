@@ -35,7 +35,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   console.log("Model centered, center offset:", center);
 
   return (
-    <RigidBody type="fixed" position={position} colliders="trimesh">
+    <RigidBody type="fixed" position={position} colliders="hull">
       <group ref={modelRef} receiveShadow>
         <primitive object={clonedScene} />
       </group>

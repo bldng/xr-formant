@@ -8,6 +8,11 @@ type Controls = {
   back: "back";
   left: "left";
   right: "right";
+  grow: "grow";
+  shrink: "shrink";
+  rotateLeft: "rotateLeft";
+  rotateRight: "rotateRight";
+  jump: "jump";
 };
 
 const Controls = {
@@ -15,21 +20,28 @@ const Controls = {
   back: "back",
   left: "left",
   right: "right",
+  grow: "grow",
+  shrink: "shrink",
+  rotateLeft: "rotateLeft",
+  rotateRight: "rotateRight",
+  jump: "jump",
 } as const;
 
 const keyboardMap = [
-  { name: Controls.forward, keys: ["ArrowUp", "KeyW"] },
-  { name: Controls.back, keys: ["ArrowDown", "KeyS"] },
-  { name: Controls.left, keys: ["ArrowLeft", "KeyA"] },
-  { name: Controls.right, keys: ["ArrowRight", "KeyD"] },
+  { name: Controls.forward, keys: ["KeyW"] },
+  { name: Controls.back, keys: ["KeyS"] },
+  { name: Controls.left, keys: ["KeyA"] },
+  { name: Controls.right, keys: ["KeyD"] },
+  { name: Controls.grow, keys: ["ArrowUp"] },
+  { name: Controls.shrink, keys: ["ArrowDown"] },
+  { name: Controls.rotateLeft, keys: ["KeyQ", "ArrowLeft"] },
+  { name: Controls.rotateRight, keys: ["KeyE", "ArrowRight"] },
+  { name: Controls.jump, keys: ["Space"] },
 ];
 
 export const Canvas = () => (
   <KeyboardControls map={keyboardMap}>
-    <R3FCanvas
-      className="w-full h-full"
-      camera={{ isOrthographicCamera: false }}
-    >
+    <R3FCanvas className="w-full h-full" frameloop="demand">
       {/* <ambientLight intensity={Math.PI / 2} />
       <spotLight
         position={[10, 10, 10]}

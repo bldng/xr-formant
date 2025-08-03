@@ -24,9 +24,10 @@ export function CameraHUD() {
 
       player.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
 
-      // Position camera at player's eye level
+      // Position camera at player's eye level (scaled with player size)
+      const eyeHeight = 0.8 * worldScale.y; // Scale eye height with player size
       playerCameraRef.current.position.copy(worldPosition);
-      playerCameraRef.current.position.y += 0.8; // Eye level
+      playerCameraRef.current.position.y += eyeHeight;
 
       // Get the forward direction from the player's rotation
       const forward = new THREE.Vector3(0, 0, -1);
@@ -34,7 +35,7 @@ export function CameraHUD() {
 
       // Look forward from the player's position
       const lookAtTarget = new THREE.Vector3().copy(worldPosition);
-      lookAtTarget.y += 0.8;
+      lookAtTarget.y += eyeHeight;
       lookAtTarget.add(forward.multiplyScalar(5));
 
       playerCameraRef.current.lookAt(lookAtTarget);
@@ -96,8 +97,9 @@ function PIPWindow({
   screenSize: { width: number; height: number };
 }) {
   // Calculate PIP window dimensions and position
-  const pipWidth = 200;
-  const pipHeight = 150;
+  const MULTIPLIER = 3;
+  const pipWidth = 200 * MULTIPLIER;
+  const pipHeight = 150 * MULTIPLIER;
   const margin = 20;
 
   // Position in top-right corner (screen coordinates)
@@ -131,12 +133,6 @@ function PIPWindow({
           <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
         </mesh>
       </group>
-
-      {/* Label Background */}
-      <mesh position={[pipX, pipY + pipHeight / 2 + 15, 2]}>
-        <planeGeometry args={[80, 12]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.7} />
-      </mesh>
     </group>
   );
 }

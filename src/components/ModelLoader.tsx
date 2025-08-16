@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
-import { Player } from "./Stage/Player";
+import { CharacterPlayer } from "./Stage/CharacterPlayer";
 
 // GLTF type definitions
 interface GLTFBuffer {
@@ -54,7 +54,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   console.log("Model centered, center offset:", center);
 
   return (
-    <RigidBody type="fixed" position={position} colliders="hull">
+    <RigidBody type="fixed" position={position} colliders="trimesh">
       <group ref={modelRef} receiveShadow>
         <primitive object={clonedScene} />
       </group>
@@ -329,10 +329,13 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
           );
         })}
 
-        <Player />
+        {/* <Player /> */}
+        <CharacterPlayer />
         {children}
-        <RigidBody type="fixed" position={[0, -1.5, 0]}>
-          <CuboidCollider args={[25, 0.5, 25]} />
+        
+        {/* Global floor with visual mesh */}
+        <RigidBody type="fixed" position={[0, -0.5, 0]}>
+          <CuboidCollider args={[1000, 0.5, 1000]} />
           <mesh>
             <boxGeometry args={[50, 1, 50]} />
             <meshStandardMaterial color="white" />

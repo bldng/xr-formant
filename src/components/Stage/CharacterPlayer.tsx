@@ -1,5 +1,5 @@
 import { useKeyboardControls } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   CapsuleCollider,
   RapierRigidBody,
@@ -33,7 +33,8 @@ export function CharacterPlayer() {
   // Access Rapier world and API
   const { world, rapier } = useRapier();
 
-  // XR and controllers
+
+  // XR and controllers  
   const { session } = useXR();
   const leftController = useXRInputSourceState("controller", "left");
   const rightController = useXRInputSourceState("controller", "right");
@@ -46,6 +47,9 @@ export function CharacterPlayer() {
   const velocityRef = useRef({ x: 0, y: 0, z: 0 });
   const jumpVelocity = 3;
   const isJumpingRef = useRef(false);
+  
+  // Track initial head rotation in XR to calculate relative offset
+  const initialHeadRotationRef = useRef<number | null>(null);
 
   // Initialize character controller
   useEffect(() => {
@@ -137,6 +141,12 @@ export function CharacterPlayer() {
     if (rotationDelta !== 0) {
       currentRotation += rotationDelta;
       setRotation(currentRotation);
+      
+      // Reset initial head rotation when player manually rotates
+      // so head tracking offset is relative to new orientation
+      if (session) {
+        initialHeadRotationRef.current = null;
+      }
     }
 
     // Apply rotation to the player group
@@ -165,7 +175,7 @@ export function CharacterPlayer() {
       movementZ -= Math.sin(currentRotation) * moveSpeed;
     }
 
-    // XR Controller movement - faster speed for VR
+    // XR Controller movement - use player rotation (same as keyboard)
     if (Math.abs(xrMovementX) > 0.1 || Math.abs(xrMovementZ) > 0.1) {
       const vrMoveSpeed = moveSpeed * 1.5; // Make VR movement 1.5x faster
 
@@ -173,13 +183,24 @@ export function CharacterPlayer() {
       const correctedX = -xrMovementX;
       const correctedZ = -xrMovementZ;
 
-      // Apply character rotation like keyboard controls but with faster speed
-      movementX +=
-        correctedX * Math.cos(currentRotation) * vrMoveSpeed +
-        correctedZ * -Math.sin(currentRotation) * vrMoveSpeed;
-      movementZ +=
-        correctedX * Math.sin(currentRotation) * vrMoveSpeed +
-        correctedZ * Math.cos(currentRotation) * vrMoveSpeed;
+      // Apply movement using same pattern as keyboard controls
+      // Forward/Back (correctedZ) - flip directions
+      if (correctedZ > 0) { // Forward (was <0)
+        movementX -= Math.sin(currentRotation) * correctedZ * vrMoveSpeed;
+        movementZ -= Math.cos(currentRotation) * correctedZ * vrMoveSpeed;
+      } else if (correctedZ < 0) { // Back (was >0)
+        movementX += Math.sin(currentRotation) * Math.abs(correctedZ) * vrMoveSpeed;
+        movementZ += Math.cos(currentRotation) * Math.abs(correctedZ) * vrMoveSpeed;
+      }
+      
+      // Left/Right (correctedX) - flip directions
+      if (correctedX > 0) { // Left (was <0)
+        movementX -= Math.cos(currentRotation) * correctedX * vrMoveSpeed;
+        movementZ += Math.sin(currentRotation) * correctedX * vrMoveSpeed;
+      } else if (correctedX < 0) { // Right (was >0)
+        movementX += Math.cos(currentRotation) * Math.abs(correctedX) * vrMoveSpeed;
+        movementZ -= Math.sin(currentRotation) * Math.abs(correctedX) * vrMoveSpeed;
+      }
     }
 
     // JUMPING

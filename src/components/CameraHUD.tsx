@@ -1,5 +1,6 @@
 import { Hud, OrthographicCamera, useFBO } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useXR } from "@react-three/xr";
 import { useRef } from "react";
 import * as THREE from "three";
 
@@ -7,6 +8,11 @@ import * as THREE from "three";
 export function CameraHUD() {
   const playerCameraRef = useRef<THREE.PerspectiveCamera>(null!);
   const { gl, scene, size } = useThree();
+  const { session } = useXR();
+  // Hide pip when XR session is active
+  const isPresenting = !!session;
+  
+  console.log("CameraHUD - isPresenting:", isPresenting, "has session:", !!session);
 
   // Calculate PIP window dimensions
   const MULTIPLIER = 3;
@@ -78,6 +84,11 @@ export function CameraHUD() {
 
     gl.autoClear = currentAutoClear;
   });
+
+  // Hide pip camera when in XR mode to prevent FBO issues
+  if (isPresenting) {
+    return null;
+  }
 
   return (
     <>

@@ -44,18 +44,30 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   // Clone and center the model
   const clonedScene = scene.clone();
 
-  // Calculate bounding box and center the model
+  // Calculate bounding box and position model on ground
   const box = new THREE.Box3().setFromObject(clonedScene);
   const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
 
-  // Center the model at origin
+  // Position model so its bottom sits on the ground
   clonedScene.position.copy(center).multiplyScalar(-1);
+  clonedScene.position.y = size.y / 2 - center.y; // Move bottom to y=0
 
-  console.log("Model centered, center offset:", center);
+  // Special case for hafen model - has underground structure, so lower it a bit
+  if (url.includes("hafen.gltf")) {
+    clonedScene.position.y -= 1.25; // Lower by 1.25 unit
+  }
+
+  console.log(
+    "Model positioned on ground, size:",
+    size,
+    "center offset:",
+    center
+  );
 
   return (
     <RigidBody type="fixed" position={position} colliders="trimesh">
-      <group ref={modelRef} receiveShadow>
+      <group ref={modelRef} receiveShadow scale={[2, 2, 2]}>
         <primitive object={clonedScene} />
       </group>
     </RigidBody>
@@ -87,7 +99,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     console.log("Adding model with URL:", url);
     const newModel = {
       url,
-      position: [0, 3, 0] as [number, number, number], // Spawn at origin, 2 units above ground
+      position: [0, 0, 0] as [number, number, number], // Spawn at origin on the floor
     };
     console.log("New model:", newModel);
     setModels((prev) => {
@@ -332,9 +344,8 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
         {/* <Player /> */}
         <CharacterPlayer />
         {children}
-        
-        {/* Global floor with visual mesh */}
-        <RigidBody type="fixed" position={[0, -0.5, 0]}>
+        {/* Global floor with slight offset to prevent collision instability */}
+        <RigidBody type="fixed" position={[0, -0.501, 0]}>
           <CuboidCollider args={[1000, 0.5, 1000]} />
           <mesh>
             <boxGeometry args={[50, 1, 50]} />

@@ -1,7 +1,11 @@
 import { KeyboardControls, OrbitControls, Stage } from "@react-three/drei";
 import { Canvas as R3FCanvas } from "@react-three/fiber";
+import { XR, createXRStore } from "@react-three/xr";
 import { CameraHUD } from "../CameraHUD";
+import { Controls as UIControls } from "../Controls";
 import { ModelRenderer } from "../ModelLoader";
+
+const store = createXRStore();
 
 type Controls = {
   forward: "forward";
@@ -40,34 +44,42 @@ const keyboardMap = [
 ];
 
 export const Canvas = () => (
-  <KeyboardControls map={keyboardMap}>
-    <R3FCanvas className="w-full h-full" frameloop="demand">
-      {/* <ambientLight intensity={Math.PI / 2} />
-      <spotLight
-        position={[10, 10, 10]}
-        angle={0.15}
-        penumbra={1}
-        decay={0}
-        intensity={Math.PI}
-      />
-      <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} /> */}
-      <Stage
-        environment={{
-          preset: "sunset",
-          blur: 10,
-          background: true,
-        }}
-        preset="rembrandt"
-        shadows={true}
-        intensity={0.5}
-        adjustCamera={true}
+  <>
+    <UIControls onEnterVR={() => store.enterVR()} />
+    <KeyboardControls map={keyboardMap}>
+      <R3FCanvas
+        className="w-full h-full"
+        //frameloop="demand"
       >
-        <ModelRenderer>
-          <></>
-        </ModelRenderer>
-      </Stage>
-      <CameraHUD />
-      <OrbitControls />
-    </R3FCanvas>
-  </KeyboardControls>
+        <XR store={store}>
+          {/* <ambientLight intensity={Math.PI / 2} />
+          <spotLight
+            position={[10, 10, 10]}
+            angle={0.15}
+            penumbra={1}
+            decay={0}
+            intensity={Math.PI}
+          />
+          <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} /> */}
+          <Stage
+            environment={{
+              preset: "sunset",
+              blur: 10,
+              background: true,
+            }}
+            preset="rembrandt"
+            shadows={true}
+            intensity={0.5}
+            adjustCamera={true}
+          >
+            <ModelRenderer>
+              <></>
+            </ModelRenderer>
+          </Stage>
+          <CameraHUD />
+          <OrbitControls />
+        </XR>
+      </R3FCanvas>
+    </KeyboardControls>
+  </>
 );

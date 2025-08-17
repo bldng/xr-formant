@@ -9,7 +9,6 @@ import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { Header } from "./components/Header";
 import {
   ModelDropZone,
-  ModelFileInput,
   ModelProvider,
 } from "./components/ModelLoader";
 import { Canvas } from "./components/Stage/Canvas";
@@ -35,7 +34,6 @@ const indexRoute = createRoute({
   path: "/",
   component: () => (
     <div className="w-full h-full relative">
-      <ModelFileInput />
       <ModelDropZone />
       <Canvas />
     </div>

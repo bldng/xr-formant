@@ -21,7 +21,14 @@ export function Header() {
             className="text-white/80 hover:text-white transition-colors"
             activeProps={{ className: "text-white font-semibold" }}
           >
-            Audio
+            Audio (Test)
+          </Link>
+          <Link
+            to="/spatial-audio"
+            className="text-white/80 hover:text-white transition-colors"
+            activeProps={{ className: "text-white font-semibold" }}
+          >
+            Audio (Spatial)
           </Link>
           <Link
             to="/about"

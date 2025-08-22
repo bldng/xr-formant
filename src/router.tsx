@@ -7,13 +7,11 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { Header } from "./components/Header";
-import {
-  ModelDropZone,
-  ModelProvider,
-} from "./components/ModelLoader";
+import { ModelDropZone, ModelProvider } from "./components/ModelLoader";
 import { Canvas } from "./components/Stage/Canvas";
 import { About } from "./pages/About";
 import { Audio } from "./pages/Audio";
+import AudioSpatial from "./pages/AudioSpatial";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -46,13 +44,24 @@ const audioRoute = createRoute({
   component: Audio,
 });
 
+const audioSpatialRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/spatial-audio",
+  component: AudioSpatial,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/about",
   component: About,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, aboutRoute, audioRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  aboutRoute,
+  audioRoute,
+  audioSpatialRoute,
+]);
 
 const router = createRouter({ routeTree });
 

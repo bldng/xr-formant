@@ -19,6 +19,7 @@
     "@types/howler": "^2.2.12",
     "@types/three": "0.169.0",
     "howler": "^2.2.4",
+    "leva": "^0.10.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "resonance-audio": "^1.0.0",

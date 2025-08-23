@@ -1,6 +1,7 @@
 import { Box, OrbitControls, Sphere, Text } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { XR, XROrigin, createXRStore } from "@react-three/xr";
+import { useControls } from "leva";
 import { useEffect, useRef, useState } from "react";
 import { ResonanceAudio, type ResonanceAudioSource } from "resonance-audio";
 import * as THREE from "three";
@@ -174,6 +175,8 @@ function VRRoomAcoustics() {
   const audioSourceGroupRef = useRef<THREE.Group | null>(null);
   const voiceSourcesRef = useRef<ResonanceAudioSource[]>([]);
   const activeVoiceSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const voiceGainNodesRef = useRef<GainNode[]>([]);
+  const clickGainNodeRef = useRef<GainNode | null>(null);
   const [currentRoom, setCurrentRoom] = useState<RoomType>("office");
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(false);
@@ -181,6 +184,37 @@ function VRRoomAcoustics() {
   const [voicesActive, setVoicesActive] = useState(false);
   const { camera } = useThree();
   const timeRef = useRef(0);
+
+  // Leva controls for audio parameters
+  const { voiceVolume, clickVolume } = useControls(
+    "Audio Controls",
+    {
+      voiceVolume: { value: 0.1, min: 0, max: 0.5, step: 0.01 },
+      clickVolume: { value: 0.1, min: 0, max: 0.5, step: 0.01 },
+    },
+    { collapsed: true }
+  );
+
+  // Update gain nodes when volume controls change
+  useEffect(() => {
+    voiceGainNodesRef.current.forEach((gainNode) => {
+      if (gainNode && audioContextRef.current) {
+        gainNode.gain.setValueAtTime(
+          voiceVolume,
+          audioContextRef.current.currentTime
+        );
+      }
+    });
+  }, [voiceVolume]);
+
+  useEffect(() => {
+    if (clickGainNodeRef.current && audioContextRef.current) {
+      clickGainNodeRef.current.gain.setValueAtTime(
+        clickVolume,
+        audioContextRef.current.currentTime
+      );
+    }
+  }, [clickVolume]);
 
   // Audio sample configurations - loading actual audio files
   const voiceConfigs = [
@@ -303,6 +337,12 @@ function VRRoomAcoustics() {
       // Position the audio source clearly to the right and in front
       audioSource.setPosition(3, 1, -3);
 
+      // Create a persistent gain node for click sounds
+      const clickGain = ctx.createGain();
+      clickGain.gain.setValueAtTime(clickVolume, ctx.currentTime);
+      clickGain.connect(audioSource.input);
+      clickGainNodeRef.current = clickGain;
+
       // Create voice sources for spatial audio
       const voiceSources = voiceConfigs.map(() => resonance.createSource());
 
@@ -407,8 +447,11 @@ function VRRoomAcoustics() {
     bufferSource.connect(gain);
     gain.connect(voiceSourcesRef.current[sourceIndex].input);
 
-    // Set volume - much lower for spatial audio
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    // Set volume - controlled by Leva
+    gain.gain.setValueAtTime(voiceVolume, ctx.currentTime);
+
+    // Store gain node reference for volume control
+    voiceGainNodesRef.current[sourceIndex] = gain;
 
     bufferSource.start();
 
@@ -453,11 +496,10 @@ function VRRoomAcoustics() {
   };
 
   const playClick = () => {
-    if (!audioContextRef.current || !sourceRef.current) return;
+    if (!audioContextRef.current || !clickGainNodeRef.current) return;
 
     const ctx = audioContextRef.current;
     const click = ctx.createBufferSource();
-    const gain = ctx.createGain();
 
     // Create a short click sound
     const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
@@ -468,9 +510,8 @@ function VRRoomAcoustics() {
     }
 
     click.buffer = buffer;
-    click.connect(gain);
-    gain.connect(sourceRef.current.input);
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    // Connect directly to the persistent gain node
+    click.connect(clickGainNodeRef.current);
 
     click.start();
   };

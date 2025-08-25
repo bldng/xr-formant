@@ -714,6 +714,14 @@ export default function AudioSpatial() {
         <p className="text-white/60 text-xs">
           Cathedral = massive echo, Small Room = dampened, Closet = dead sound
         </p>
+        {/* VR Button */}
+
+        <button
+          onClick={() => store.enterVR()}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-lg transition-colors"
+        >
+          Enter VR
+        </button>
       </div>
 
       <div className="flex-1">

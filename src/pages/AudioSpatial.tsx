@@ -699,26 +699,26 @@ function VRRoomAcoustics() {
 
 const store = createXRStore();
 
-export default function AudioSpatial() {
+export function AudioSpatialPage() {
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="p-4 bg-black/80 backdrop-blur-md border-b border-white/10">
-        <h1 className="text-2xl font-bold text-white mb-2">
+    <div className="flex flex-col w-full h-full">
+      <div className="p-4 border-b bg-black/80 backdrop-blur-md border-white/10">
+        <h1 className="mb-2 text-2xl font-bold text-white">
           VR Room Acoustics with Resonance Audio
         </h1>
-        <p className="text-white/70 text-sm mb-2">
+        <p className="mb-2 text-sm text-white/70">
           Click buttons to switch between room types and walk around in VR to
           experience how different room acoustics affect the same audio source.
           Use headphones for best experience.
         </p>
-        <p className="text-white/60 text-xs">
+        <p className="text-xs text-white/60">
           Cathedral = massive echo, Small Room = dampened, Closet = dead sound
         </p>
         {/* VR Button */}
 
         <button
           onClick={() => store.enterVR()}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-lg transition-colors"
+          className="px-4 py-2 text-white transition-colors bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700"
         >
           Enter VR
         </button>

@@ -7,15 +7,13 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { Header } from "./components/Header";
-import { ModelDropZone, ModelProvider } from "./components/ModelLoader";
-import { Canvas } from "./components/Stage/Canvas";
-import { About } from "./pages/About";
-import { Audio } from "./pages/Audio";
-import AudioSpatial from "./pages/AudioSpatial";
+import { AudioPage } from "./pages/Audio";
+import { AudioSpatialPage } from "./pages/AudioSpatial";
+import { ModelPage } from "./pages/Model";
 
 const rootRoute = createRootRoute({
   component: () => (
-    <ModelProvider>
+    <>
       <div className="h-[100svh] flex flex-col">
         <Header />
         <div className="flex-1 min-h-0">
@@ -23,37 +21,32 @@ const rootRoute = createRootRoute({
         </div>
       </div>
       <TanStackRouterDevtools />
-    </ModelProvider>
+    </>
   ),
 });
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => (
-    <div className="w-full h-full relative">
-      <ModelDropZone />
-      <Canvas />
-    </div>
-  ),
+  component: ModelPage,
 });
 
 const audioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audio",
-  component: Audio,
+  component: AudioPage,
 });
 
 const audioSpatialRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/spatial-audio",
-  component: AudioSpatial,
+  component: AudioSpatialPage,
 });
 
 const aboutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/about",
-  component: About,
+  component: ModelPage,
 });
 
 const routeTree = rootRoute.addChildren([

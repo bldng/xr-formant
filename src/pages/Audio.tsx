@@ -269,18 +269,15 @@ function MovingAudioSource({
           );
 
           // Add random volume variations for realism
-          setInterval(
-            () => {
-              if (ctx.state !== "closed") {
-                const variation = 0.1 + Math.random() * 0.1;
-                buzzGain.gain.exponentialRampToValueAtTime(
-                  variation,
-                  ctx.currentTime + 0.05
-                );
-              }
-            },
-            200 + Math.random() * 300
-          );
+          setInterval(() => {
+            if (ctx.state !== "closed") {
+              const variation = 0.1 + Math.random() * 0.1;
+              buzzGain.gain.exponentialRampToValueAtTime(
+                variation,
+                ctx.currentTime + 0.05
+              );
+            }
+          }, 200 + Math.random() * 300);
 
           osc.connect(buzzGain);
           buzzGain.connect(gainNode);
@@ -508,7 +505,7 @@ function AudioScene() {
   );
 }
 
-export function Audio() {
+export function AudioPage() {
   return (
     <div className="w-full h-full flex flex-col">
       <div className="p-4 bg-black/80 backdrop-blur-md border-b border-white/10">

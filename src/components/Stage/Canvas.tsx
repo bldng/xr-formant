@@ -4,6 +4,7 @@ import { XR, createXRStore } from "@react-three/xr";
 import { CameraHUD } from "../CameraHUD";
 import { Controls as UIControls } from "../Controls";
 import { ModelRenderer } from "../ModelLoader";
+import { XRVisualFilter } from "./XRVisualFilter";
 
 const store = createXRStore();
 
@@ -83,6 +84,7 @@ export const Canvas = () => (
           </Stage>
           <CameraHUD />
           <OrbitControls />
+          <XRVisualFilter />
         </XR>
       </R3FCanvas>
     </KeyboardControls>

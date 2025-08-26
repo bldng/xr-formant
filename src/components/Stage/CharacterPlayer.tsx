@@ -208,7 +208,7 @@ export function CharacterPlayer() {
 
     // Simple movement rotation: player rotation + head offset
     const movementRotation = currentRotation + rawHeadOffset;
-    
+
     setDebugText(
       `Player: ${((currentRotation * 180) / Math.PI).toFixed(0)}° Body: ${(
         (headOffset * 180) /
@@ -260,8 +260,10 @@ export function CharacterPlayer() {
         movementZ -= Math.cos(movementRotation) * correctedZ * vrMoveSpeed;
       } else if (correctedZ < 0) {
         // Back
-        movementX += Math.sin(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
-        movementZ += Math.cos(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
+        movementX +=
+          Math.sin(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
+        movementZ +=
+          Math.cos(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
       }
 
       // Left/Right (correctedX)
@@ -271,8 +273,10 @@ export function CharacterPlayer() {
         movementZ += Math.sin(movementRotation) * correctedX * vrMoveSpeed;
       } else if (correctedX < 0) {
         // Right
-        movementX += Math.cos(movementRotation) * Math.abs(correctedX) * vrMoveSpeed;
-        movementZ -= Math.sin(movementRotation) * Math.abs(correctedX) * vrMoveSpeed;
+        movementX +=
+          Math.cos(movementRotation) * Math.abs(correctedX) * vrMoveSpeed;
+        movementZ -=
+          Math.sin(movementRotation) * Math.abs(correctedX) * vrMoveSpeed;
       }
     }
 

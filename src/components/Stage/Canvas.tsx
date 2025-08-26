@@ -49,18 +49,23 @@ export const Canvas = () => (
     <KeyboardControls map={keyboardMap}>
       <R3FCanvas
         className="w-full h-full"
+        shadows
         //frameloop="demand"
       >
         <XR store={store}>
-          {/* <ambientLight intensity={Math.PI / 2} />
-          <spotLight
-            position={[10, 10, 10]}
-            angle={0.15}
-            penumbra={1}
-            decay={0}
-            intensity={Math.PI}
+          <directionalLight
+            position={[10, 15, 8]}
+            intensity={2}
+            castShadow
+            shadow-mapSize-width={4096}
+            shadow-mapSize-height={4096}
+            shadow-camera-far={100}
+            shadow-camera-left={-20}
+            shadow-camera-right={20}
+            shadow-camera-top={20}
+            shadow-camera-bottom={-20}
+            shadow-bias={-0.0001}
           />
-          <pointLight position={[-10, -10, -10]} decay={0} intensity={Math.PI} /> */}
           <Stage
             environment={{
               preset: "sunset",
@@ -68,7 +73,7 @@ export const Canvas = () => (
               background: true,
             }}
             preset="rembrandt"
-            shadows={true}
+            shadows={false}
             intensity={0.5}
             adjustCamera={true}
           >

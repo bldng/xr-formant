@@ -65,9 +65,17 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
     center
   );
 
+  // Enable shadows on all meshes in the model
+  clonedScene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
   return (
     <RigidBody type="fixed" position={position} colliders="trimesh">
-      <group ref={modelRef} receiveShadow scale={[2, 2, 2]}>
+      <group ref={modelRef} castShadow receiveShadow scale={[2, 2, 2]}>
         <primitive object={clonedScene} />
       </group>
     </RigidBody>

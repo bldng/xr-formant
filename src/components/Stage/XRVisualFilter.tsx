@@ -8,7 +8,10 @@ export function XRVisualFilter() {
   const { gl } = useThree();
   const boxRef = useRef<THREE.Mesh>(null);
 
-  const { glasses } = useControls({ glasses: { value: true } });
+  const { glasses, vignetteIntensity } = useControls({
+    glasses: { value: true },
+    vignetteIntensity: { value: 50, min: 0, max: 100, step: 1 },
+  });
 
   useFrame(() => {
     if (boxRef.current && gl.xr.isPresenting) {
@@ -33,21 +36,47 @@ export function XRVisualFilter() {
       </mesh>
 
       {glasses && (
-        <>
-          <mesh position={[0, 0.5, -1]} scale={[15, 15, 5]}>
-            <sphereGeometry args={[0.2]} />
-            <meshPhysicalMaterial
-              transmission={1}
-              thickness={1.5}
-              roughness={0.5}
-              ior={1.5}
-              anisotropy={0.15}
-              transparent={true}
-              opacity={0.8}
-              color="#88ccff"
-            />
-          </mesh>
-        </>
+        <mesh position={[0, 0.5, -1]} scale={[15, 15, 5]}>
+          <sphereGeometry args={[0.2]} />
+          <meshPhysicalMaterial
+            transmission={0.1}
+            thickness={1.5}
+            roughness={100.5}
+            ior={1.5}
+            anisotropy={0.15}
+            transparent={true}
+            opacity={0.8}
+            color="#88ccff"
+          />
+        </mesh>
+      )}
+
+      {vignetteIntensity > 0 && (
+        <mesh position={[0, 0, -0.2]}>
+          <planeGeometry args={[4, 4]} />
+          <shaderMaterial
+            transparent={true}
+            opacity={vignetteIntensity / 100.0}
+            depthTest={false}
+            depthWrite={false}
+            vertexShader={`
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `}
+            fragmentShader={`
+              varying vec2 vUv;
+              void main() {
+                vec2 center = vec2(0.5, 0.5);
+                float distance = length(vUv - center);
+                float vignette = smoothstep(0.15, 0.7, distance);
+                gl_FragColor = vec4(0.0, 0.0, 0.0, vignette);
+              }
+            `}
+          />
+        </mesh>
       )}
     </group>
   );

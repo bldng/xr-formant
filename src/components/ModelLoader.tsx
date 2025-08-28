@@ -38,8 +38,19 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   console.log("GLTFModel component rendering with URL:", url);
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
+  const { setModelLoading } = useModels();
 
   console.log("GLTF scene loaded:", scene);
+
+  // Mark model as loaded when scene is available
+  useEffect(() => {
+    if (scene) {
+      setModelLoading(url, false);
+    }
+    return () => {
+      setModelLoading(url, false);
+    };
+  }, [scene, url, setModelLoading]);
 
   // Clone and center the model
   const clonedScene = scene.clone();
@@ -80,6 +91,8 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 interface ModelContextType {
   models: Array<{ url: string; position: [number, number, number] }>;
   addModel: (url: string) => void;
+  isAnyModelLoading: boolean;
+  setModelLoading: (url: string, isLoading: boolean) => void;
 }
 
 const ModelContext = createContext<ModelContextType | null>(null);
@@ -97,9 +110,11 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [models, setModels] = useState<
     Array<{ url: string; position: [number, number, number] }>
   >([]);
+  const [loadingModels, setLoadingModels] = useState<Set<string>>(new Set());
 
   const addModel = useCallback((url: string) => {
     console.log("Adding model with URL:", url);
+    setLoadingModels(prev => new Set(prev).add(url));
     const newModel = {
       url,
       position: [0, 0, 0] as [number, number, number], // Spawn at origin on the floor
@@ -113,8 +128,22 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setModelLoading = useCallback((url: string, isLoading: boolean) => {
+    setLoadingModels(prev => {
+      const newSet = new Set(prev);
+      if (isLoading) {
+        newSet.add(url);
+      } else {
+        newSet.delete(url);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const isAnyModelLoading = loadingModels.size > 0;
+
   return (
-    <ModelContext.Provider value={{ models, addModel }}>
+    <ModelContext.Provider value={{ models, addModel, isAnyModelLoading, setModelLoading }}>
       {children}
     </ModelContext.Provider>
   );
@@ -326,13 +355,13 @@ export function ModelDropZone() {
 
 // 3D models renderer (inside Canvas)
 export function ModelRenderer({ children }: { children?: React.ReactNode }) {
-  const { models } = useModels();
+  const { models, isAnyModelLoading } = useModels();
 
   console.log("ModelRenderer - Current models:", models);
 
   return (
     <>
-      <Physics>
+      <Physics paused={isAnyModelLoading}>
         {models.map((model, index) => {
           console.log(`Rendering model ${index}:`, model);
           return (

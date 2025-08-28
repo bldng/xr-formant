@@ -70,10 +70,28 @@ export function CharacterPlayer() {
   // Initialize character controller
   useEffect(() => {
     if (world && rapier) {
-      const controller = world.createCharacterController(slopeSettings.controllerOffset);
-      controller.enableAutostep(slopeSettings.autostepHeight, slopeSettings.autostepMinWidth, true);
-      controller.setMaxSlopeClimbAngle((slopeSettings.maxSlopeClimbAngle * Math.PI) / 180);
-      controller.setMinSlopeSlideAngle((slopeSettings.minSlopeSlideAngle * Math.PI) / 180);
+      console.log("Rapier WASM info:", {
+        version: rapier.version?.(),
+        rapierKeys: Object.keys(rapier).slice(0, 15),
+        hasKinematicCharacterController: 'KinematicCharacterController' in rapier,
+        windowLocation: window.location.href,
+        userAgent: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other'
+      });
+
+      const controller = world.createCharacterController(
+        slopeSettings.controllerOffset
+      );
+      controller.enableAutostep(
+        slopeSettings.autostepHeight,
+        slopeSettings.autostepMinWidth,
+        true
+      );
+      controller.setMaxSlopeClimbAngle(
+        (slopeSettings.maxSlopeClimbAngle * Math.PI) / 180
+      );
+      controller.setMinSlopeSlideAngle(
+        (slopeSettings.minSlopeSlideAngle * Math.PI) / 180
+      );
       controller.enableSnapToGround(slopeSettings.snapToGroundDistance);
       controller.setApplyImpulsesToDynamicBodies(true);
       characterControllerRef.current = controller;

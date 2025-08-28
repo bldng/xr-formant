@@ -7,6 +7,7 @@ import {
   useRapier,
 } from "@react-three/rapier";
 import { useXR, useXRInputSourceState, XROrigin } from "@react-three/xr";
+import { useControls } from "leva";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -29,6 +30,16 @@ export function CharacterPlayer() {
   const [scale, setScale] = useState(0.5);
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
+
+  // Leva controls for character controller settings
+  const slopeSettings = useControls("Character Controller", {
+    controllerOffset: { value: 0.01, min: 0.001, max: 0.1, step: 0.001 },
+    maxSlopeClimbAngle: { value: 50, min: 0, max: 90, step: 1 },
+    minSlopeSlideAngle: { value: 55, min: 0, max: 90, step: 1 },
+    autostepHeight: { value: 0.7, min: 0.1, max: 2.0, step: 0.1 },
+    autostepMinWidth: { value: 0.05, min: 0.01, max: 0.5, step: 0.01 },
+    snapToGroundDistance: { value: 0.3, min: 0.1, max: 1.0, step: 0.1 },
+  });
 
   // Access Rapier world and API
   const { world, rapier } = useRapier();
@@ -59,11 +70,11 @@ export function CharacterPlayer() {
   // Initialize character controller
   useEffect(() => {
     if (world && rapier) {
-      const controller = world.createCharacterController(0.02);
-      controller.enableAutostep(0.6, 0.1, true);
-      controller.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
-      controller.setMinSlopeSlideAngle((50 * Math.PI) / 180);
-      controller.enableSnapToGround(0.2);
+      const controller = world.createCharacterController(slopeSettings.controllerOffset);
+      controller.enableAutostep(slopeSettings.autostepHeight, slopeSettings.autostepMinWidth, true);
+      controller.setMaxSlopeClimbAngle((slopeSettings.maxSlopeClimbAngle * Math.PI) / 180);
+      controller.setMinSlopeSlideAngle((slopeSettings.minSlopeSlideAngle * Math.PI) / 180);
+      controller.enableSnapToGround(slopeSettings.snapToGroundDistance);
       controller.setApplyImpulsesToDynamicBodies(true);
       characterControllerRef.current = controller;
 
@@ -73,7 +84,7 @@ export function CharacterPlayer() {
         }
       };
     }
-  }, [world, rapier]);
+  }, [world, rapier, slopeSettings]);
 
   useFrame((_, delta) => {
     if (

@@ -61,8 +61,8 @@ export function CharacterPlayer() {
     if (world && rapier) {
       const controller = world.createCharacterController(0.02);
       controller.enableAutostep(0.6, 0.1, true);
-      controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180);
-      controller.setMinSlopeSlideAngle((35 * Math.PI) / 180);
+      controller.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+      controller.setMinSlopeSlideAngle((50 * Math.PI) / 180);
       controller.enableSnapToGround(0.2);
       controller.setApplyImpulsesToDynamicBodies(true);
       characterControllerRef.current = controller;

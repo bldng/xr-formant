@@ -53,11 +53,6 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   clonedScene.position.copy(center).multiplyScalar(-1);
   clonedScene.position.y = size.y / 2 - center.y; // Move bottom to y=0
 
-  // Special case for hafen model - has underground structure, so lower it a bit
-  if (url.includes("hafen.gltf")) {
-    clonedScene.position.y -= 1.25; // Lower by 1.25 unit
-  }
-
   console.log(
     "Model positioned on ground, size:",
     size,
@@ -353,7 +348,7 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
         <CharacterPlayer />
         {children}
         {/* Global floor with slight offset to prevent collision instability */}
-        <RigidBody type="fixed" position={[0, -0.501, 0]}>
+        <RigidBody type="fixed" position={[0, -0.51, 0]}>
           <CuboidCollider args={[1000, 0.5, 1000]} />
           <mesh>
             <boxGeometry args={[50, 1, 50]} />

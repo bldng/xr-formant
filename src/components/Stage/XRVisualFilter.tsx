@@ -38,7 +38,7 @@ export function XRVisualFilter() {
       {glasses && (
         <mesh position={[0, 0.5, -1]} scale={[15, 15, 5]}>
           <sphereGeometry args={[0.2]} />
-          <meshPhysicalMaterial
+          {/* <meshPhysicalMaterial
             transmission={0.1}
             thickness={1.5}
             roughness={100.5}
@@ -47,6 +47,15 @@ export function XRVisualFilter() {
             transparent={true}
             opacity={0.8}
             color="#88ccff"
+          /> */}
+
+          <meshPhysicalMaterial
+            transmission={1.0}
+            thickness={0.1}
+            roughness={10000}
+            ior={1.5}
+            anisotropy={0.15}
+            reflectivity={0}
           />
         </mesh>
       )}

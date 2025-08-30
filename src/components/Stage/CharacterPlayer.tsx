@@ -7,8 +7,7 @@ import {
   useRapier,
 } from "@react-three/rapier";
 import { useXR, useXRInputSourceState, XROrigin } from "@react-three/xr";
-import { useControls } from "leva";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 type Controls =
@@ -31,15 +30,18 @@ export function CharacterPlayer() {
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
 
-  // Leva controls for character controller settings
-  const slopeSettings = useControls("Character Controller", {
-    controllerOffset: { value: 0.01, min: 0.001, max: 0.1, step: 0.001 },
-    maxSlopeClimbAngle: { value: 50, min: 0, max: 90, step: 1 },
-    minSlopeSlideAngle: { value: 55, min: 0, max: 90, step: 1 },
-    autostepHeight: { value: 0.7, min: 0.1, max: 2.0, step: 0.1 },
-    autostepMinWidth: { value: 0.05, min: 0.01, max: 0.5, step: 0.01 },
-    snapToGroundDistance: { value: 0.3, min: 0.1, max: 1.0, step: 0.1 },
-  });
+  // Hardcoded character controller settings
+  const slopeSettings = useMemo(
+    () => ({
+      controllerOffset: 0.01,
+      maxSlopeClimbAngle: 50,
+      minSlopeSlideAngle: 55,
+      autostepHeight: 0.7,
+      autostepMinWidth: 0.05,
+      snapToGroundDistance: 0.3,
+    }),
+    []
+  );
 
   // Access Rapier world and API
   const { world, rapier } = useRapier();
@@ -70,14 +72,6 @@ export function CharacterPlayer() {
   // Initialize character controller
   useEffect(() => {
     if (world && rapier) {
-      console.log("Rapier WASM info:", {
-        version: rapier.version?.(),
-        rapierKeys: Object.keys(rapier).slice(0, 15),
-        hasKinematicCharacterController: 'KinematicCharacterController' in rapier,
-        windowLocation: window.location.href,
-        userAgent: navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other'
-      });
-
       const controller = world.createCharacterController(
         slopeSettings.controllerOffset
       );
@@ -382,7 +376,8 @@ export function CharacterPlayer() {
     <RigidBody
       ref={playerRef}
       type="kinematicVelocity"
-      position={[0, 1.399, 0]}
+      // position={[0, 1.399, 0]}
+      position={[-20, 2, 0]}
       lockRotations={true}
     >
       <CapsuleCollider args={[0.9, 0.5]} />

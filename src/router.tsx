@@ -2,14 +2,12 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/router-devtools";
 import { Header } from "./components/Header";
-import { AudioPage } from "./pages/Audio";
-import { AudioSpatialPage } from "./pages/AudioSpatial";
-import { ModelPage } from "./pages/Model";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -28,25 +26,25 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: ModelPage,
+  component: lazyRouteComponent(() => import("./pages/Model").then(m => ({ default: m.ModelPage }))),
 });
 
 const audioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audio",
-  component: AudioPage,
+  component: lazyRouteComponent(() => import("./pages/Audio").then(m => ({ default: m.AudioPage }))),
 });
 
 const audioSpatialRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/spatial-audio",
-  component: AudioSpatialPage,
+  component: lazyRouteComponent(() => import("./pages/AudioSpatial").then(m => ({ default: m.AudioSpatialPage }))),
 });
 
 const aboutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/about",
-  component: ModelPage,
+  component: lazyRouteComponent(() => import("./pages/About").then(m => ({ default: m.AboutPage }))),
 });
 
 const routeTree = rootRoute.addChildren([

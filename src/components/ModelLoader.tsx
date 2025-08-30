@@ -89,9 +89,9 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 } // Context for sharing model state between components
 
 interface ModelContextType {
-  models: Array<{ url: string; position: [number, number, number] }>;
-  addModel: (url: string) => void;
-  isAnyModelLoading: boolean;
+  model: { url: string; position: [number, number, number] } | null;
+  setModel: (url: string) => void;
+  isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
 }
 
@@ -107,43 +107,31 @@ export function useModels() {
 }
 
 export function ModelProvider({ children }: { children: React.ReactNode }) {
-  const [models, setModels] = useState<
-    Array<{ url: string; position: [number, number, number] }>
-  >([]);
-  const [loadingModels, setLoadingModels] = useState<Set<string>>(new Set());
+  const [model, setModelState] = useState<{
+    url: string;
+    position: [number, number, number];
+  } | null>(null);
+  const [isModelLoading, setIsModelLoading] = useState(false);
 
-  const addModel = useCallback((url: string) => {
-    console.log("Adding model with URL:", url);
-    setLoadingModels(prev => new Set(prev).add(url));
+  const setModel = useCallback((url: string) => {
+    console.log("Setting model with URL:", url);
+    setIsModelLoading(true);
     const newModel = {
       url,
       position: [0, 0, 0] as [number, number, number], // Spawn at origin on the floor
     };
     console.log("New model:", newModel);
-    setModels((prev) => {
-      console.log("Previous models:", prev);
-      const updated = [...prev, newModel];
-      console.log("Updated models:", updated);
-      return updated;
-    });
+    setModelState(newModel);
   }, []);
 
   const setModelLoading = useCallback((url: string, isLoading: boolean) => {
-    setLoadingModels(prev => {
-      const newSet = new Set(prev);
-      if (isLoading) {
-        newSet.add(url);
-      } else {
-        newSet.delete(url);
-      }
-      return newSet;
-    });
+    setIsModelLoading(isLoading);
   }, []);
 
-  const isAnyModelLoading = loadingModels.size > 0;
-
   return (
-    <ModelContext.Provider value={{ models, addModel, isAnyModelLoading, setModelLoading }}>
+    <ModelContext.Provider
+      value={{ model, setModel, isModelLoading, setModelLoading }}
+    >
       {children}
     </ModelContext.Provider>
   );
@@ -152,7 +140,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
 // Drag and drop overlay (outside Canvas)
 export function ModelDropZone() {
   const [isDragging, setIsDragging] = useState(false);
-  const { addModel } = useModels();
+  const { setModel } = useModels();
 
   // Prevent default browser drag/drop behavior globally
   const preventDefaults = useCallback((e: Event) => {
@@ -246,7 +234,7 @@ export function ModelDropZone() {
         if (gltfFile.name.toLowerCase().endsWith(".glb")) {
           const url = URL.createObjectURL(gltfFile);
           console.log("Created GLB URL:", url);
-          addModel(url);
+          setModel(url);
           return;
         }
 
@@ -307,12 +295,12 @@ export function ModelDropZone() {
           const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
 
           console.log("Created modified GLTF URL:", gltfUrl);
-          addModel(gltfUrl);
+          setModel(gltfUrl);
         } catch (error) {
           console.error("Error processing GLTF files:", error);
           // Fallback to simple URL creation
           const url = URL.createObjectURL(gltfFile);
-          addModel(url);
+          setModel(url);
         }
       } else {
         console.log(
@@ -321,7 +309,7 @@ export function ModelDropZone() {
         );
       }
     },
-    [addModel]
+    [setModel]
   );
 
   return (
@@ -343,7 +331,7 @@ export function ModelDropZone() {
                 Drop GLTF/GLB Model + Assets
               </h3>
               <p className="text-gray-600">
-                Drop all files together (GLTF + BIN + textures) for best results
+                Drop files to replace current model
               </p>
             </div>
           </div>
@@ -355,23 +343,20 @@ export function ModelDropZone() {
 
 // 3D models renderer (inside Canvas)
 export function ModelRenderer({ children }: { children?: React.ReactNode }) {
-  const { models, isAnyModelLoading } = useModels();
+  const { model, isModelLoading } = useModels();
 
-  console.log("ModelRenderer - Current models:", models);
+  console.log("ModelRenderer - Current model:", model);
 
   return (
     <>
-      <Physics paused={isAnyModelLoading}>
-        {models.map((model, index) => {
-          console.log(`Rendering model ${index}:`, model);
-          return (
-            <GLTFModel
-              key={`${model.url}-${index}`}
-              url={model.url}
-              position={model.position}
-            />
-          );
-        })}
+      <Physics paused={isModelLoading}>
+        {model && (
+          <GLTFModel
+            key={model.url}
+            url={model.url}
+            position={model.position}
+          />
+        )}
 
         {/* <Player /> */}
         <CharacterPlayer />
@@ -389,10 +374,14 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
   );
 }
 
-// File input component
-export function ModelFileInput() {
+// File input component with controls
+interface ModelControlsProps {
+  onEnterVR: () => void;
+}
+
+export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addModel, models } = useModels();
+  const { setModel, model } = useModels();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -407,7 +396,7 @@ export function ModelFileInput() {
       // For GLB files (self-contained), we can use them directly
       if (file.name.toLowerCase().endsWith(".glb")) {
         const url = URL.createObjectURL(file);
-        addModel(url);
+        setModel(url);
         return;
       }
 
@@ -417,20 +406,39 @@ export function ModelFileInput() {
         "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
       );
       const url = URL.createObjectURL(file);
-      addModel(url);
+      setModel(url);
     }
+  };
+
+  const handleLoadHafen = () => {
+    // Load the hafen.gltf model from the public folder
+    setModel("/hafen.gltf");
   };
 
   return (
     <div className="absolute top-4 left-4 z-20">
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
-      >
-        Load GLB Model
-      </button>
-      <div className="mt-2 text-sm text-white bg-black/50 px-2 py-1 rounded">
-        Models loaded: {models.length}
+      <div className="flex gap-2 mb-2">
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+        >
+          Load Model
+        </button>
+        <button
+          onClick={handleLoadHafen}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+        >
+          Load Hafen
+        </button>
+        <button
+          onClick={onEnterVR}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Enter VR
+        </button>
+      </div>
+      <div className="text-sm text-white bg-black/50 px-2 py-1 rounded">
+        Model: {model ? "loaded" : "none"}
       </div>
       <div className="mt-1 text-xs text-white/70 bg-black/30 px-2 py-1 rounded">
         Tip: Drag & drop for GLTF + assets

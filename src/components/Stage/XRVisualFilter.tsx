@@ -26,8 +26,9 @@ export function XRVisualFilter() {
     vignetteIntensity,
     blurIntensity,
     blurEnabled,
-    tunnelVision,
-    tunnelIntensity,
+    // Age-related macular degeneration
+    amdVision,
+    amdIntensity,
     cataract,
     cataractIntensity,
     retinopathy,
@@ -37,8 +38,8 @@ export function XRVisualFilter() {
     vignetteIntensity: { value: 50, min: 0, max: 100, step: 1 },
     blurEnabled: { value: false },
     blurIntensity: { value: 5, min: 1.0, max: 10.0, step: 0.1 },
-    tunnelVision: { value: false },
-    tunnelIntensity: { value: 50, min: 10, max: 90, step: 5 },
+    amdVision: { value: false },
+    amdIntensity: { value: 50, min: 10, max: 90, step: 5 },
     cataract: { value: false },
     cataractIntensity: { value: 50, min: 10, max: 100, step: 5 },
     retinopathy: { value: false },
@@ -147,10 +148,10 @@ export function XRVisualFilter() {
         </mesh>
       )}
 
-      {tunnelVision && (
+      {amdVision && (
         <mesh
           position={[0, 0, -0.15]}
-          scale={[tunnelIntensity / 25.0, tunnelIntensity / 25.0, 1]}
+          scale={[amdIntensity / 25.0, amdIntensity / 25.0, 1]}
         >
           <planeGeometry args={[4, 4]} />
           <shaderMaterial
@@ -172,10 +173,10 @@ export function XRVisualFilter() {
                 vec2 center = vec2(0.5, 0.5);
                 float distance = length(vUv - center);
                 
-                // Create smooth tunnel effect - clear in center, dark at edges
-                float tunnel = 1.0 - smoothstep(0.1, 0.5, distance);
+                // Create smooth amd effect - clear in center, dark at edges
+                float amd = 1.0 - smoothstep(0.1, 0.5, distance);
                 
-                gl_FragColor = vec4(0.0, 0.0, 0.0, tunnel);
+                gl_FragColor = vec4(0.0, 0.0, 0.0, amd);
               }
             `}
           />
@@ -243,7 +244,7 @@ export function XRVisualFilter() {
 
       {retinopathy && (
         <mesh position={[0, 0, -0.08]}>
-          <planeGeometry args={[4, 4]} />
+          <planeGeometry args={[4, 4, 128, 128]} />
           <shaderMaterial
             ref={retinopathyMaterialRef}
             transparent={true}
@@ -335,20 +336,26 @@ export function XRVisualFilter() {
                 // Combine patterns to create worm-like structures
                 float worms = pattern1 * 0.5 + pattern2 * 0.3 + pattern3 * 0.2;
                 
-                // Create more defined worm shapes by using ridged noise
+                // Create more defined worm shapes by using ridged noise with better anti-aliasing
                 float ridged = abs(worms * 2.0 - 1.0);
                 ridged = 1.0 - ridged;
-                ridged = smoothstep(0.4, 0.8, ridged);
+                
+                // Use fwidth for automatic anti-aliasing based on screen resolution
+                float edge = fwidth(ridged) * 2.0;
+                ridged = smoothstep(0.4 - edge, 0.8 + edge, ridged);
                 
                 // Add flowing animation to the worms
                 float flowMag = length(flow);
                 float animated = ridged + sin(uTime * 2.0 + flowMag * 10.0) * 0.1;
                 
-                // Create final worm pattern with organic edges
-                float finalPattern = smoothstep(0.3, 0.7, animated);
+                // Create final worm pattern with better anti-aliased edges
+                float patternEdge = fwidth(animated) * 1.5;
+                float finalPattern = smoothstep(0.3 - patternEdge, 0.7 + patternEdge, animated);
                 
-                // Add some variation in thickness
+                // Add some variation in thickness with smoother transitions
                 float thickness = noise(distortedUV * 12.0 + uTime * 0.3) * 0.3 + 0.7;
+                float thicknessEdge = fwidth(thickness) * 2.0;
+                thickness = smoothstep(0.2 - thicknessEdge, 0.8 + thicknessEdge, thickness);
                 finalPattern *= thickness;
                 
                 // Pulsing effect

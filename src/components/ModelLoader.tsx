@@ -2,6 +2,7 @@ import { useGLTF } from "@react-three/drei";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -124,7 +125,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     setModelState(newModel);
   }, []);
 
-  const setModelLoading = useCallback((url: string, isLoading: boolean) => {
+  const setModelLoading = useCallback((_url: string, isLoading: boolean) => {
     setIsModelLoading(isLoading);
   }, []);
 
@@ -350,13 +351,15 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
   return (
     <>
       <Physics paused={isModelLoading}>
-        {model && (
-          <GLTFModel
-            key={model.url}
-            url={model.url}
-            position={model.position}
-          />
-        )}
+        <Suspense fallback={null}>
+          {model && (
+            <GLTFModel
+              key={model.url}
+              url={model.url}
+              position={model.position}
+            />
+          )}
+        </Suspense>
 
         {/* <Player /> */}
         <CharacterPlayer />

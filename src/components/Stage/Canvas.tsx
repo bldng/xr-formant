@@ -2,7 +2,7 @@ import { KeyboardControls, OrbitControls, Stage } from "@react-three/drei";
 import { Canvas as R3FCanvas } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { CameraHUD } from "../CameraHUD";
-import { ModelRenderer, ModelControls } from "../ModelLoader";
+import { ModelControls, ModelRenderer } from "../ModelLoader";
 import XRPostprocessing from "./PostProcessing";
 import { XRVisualFilter } from "./XRVisualFilter";
 

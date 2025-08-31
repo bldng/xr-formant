@@ -8,6 +8,7 @@ export function XRVisualFilter() {
   const { gl } = useThree();
   const boxRef = useRef<THREE.Mesh>(null);
   const retinopathyMaterialRef = useRef<THREE.ShaderMaterial>(null);
+  const monocularMaterialRef = useRef<THREE.ShaderMaterial>(null);
 
   // Load the cataract texture
   const cataractTexture = useLoader(THREE.TextureLoader, "/mat/cataract.jpg");
@@ -17,6 +18,13 @@ export function XRVisualFilter() {
     () => ({
       uTime: { value: 0 },
       uIntensity: { value: 0 },
+    }),
+    []
+  );
+
+  const monocularUniforms = useMemo(
+    () => ({
+      uGradient: { value: 0.5 }, // 0.0 = left covered, 0.5 = center, 1.0 = right covered
     }),
     []
   );
@@ -33,17 +41,22 @@ export function XRVisualFilter() {
     cataractIntensity,
     retinopathy,
     retinopathyIntensity,
+    // Monocular vision gradient
+    monocularVision,
+    monocularGradient,
   } = useControls("Visual Layers", {
     glasses: { value: false },
     vignetteIntensity: { value: 50, min: 0, max: 100, step: 1 },
     blurEnabled: { value: false },
     blurIntensity: { value: 5, min: 1.0, max: 10.0, step: 0.1 },
     amdVision: { value: false },
-    amdIntensity: { value: 50, min: 10, max: 90, step: 5 },
+    amdIntensity: { value: 10, min: 10, max: 90, step: 5 },
     cataract: { value: false },
-    cataractIntensity: { value: 50, min: 10, max: 100, step: 5 },
+    cataractIntensity: { value: 10, min: 10, max: 200, step: 10 },
     retinopathy: { value: false },
     retinopathyIntensity: { value: 50, min: 10, max: 100, step: 5 },
+    monocularVision: { value: false },
+    monocularGradient: { value: 50, min: 0, max: 100, step: 1 },
   });
 
   useFrame((state) => {
@@ -63,6 +76,12 @@ export function XRVisualFilter() {
         state.clock.elapsedTime / 10;
       retinopathyMaterialRef.current.uniforms.uIntensity.value =
         retinopathyIntensity / 100.0;
+    }
+
+    // Update monocular vision uniforms
+    if (monocularMaterialRef.current) {
+      monocularMaterialRef.current.uniforms.uGradient.value =
+        monocularGradient / 100.0;
     }
   });
 
@@ -373,6 +392,55 @@ export function XRVisualFilter() {
                 float alpha = invertedPattern * uIntensity;
                 
                 gl_FragColor = vec4(finalColor, alpha);
+              }
+            `}
+          />
+        </mesh>
+      )}
+
+      {monocularVision && (
+        <mesh position={[0, 0, -0.09]}>
+          <planeGeometry args={[4, 4]} />
+          <shaderMaterial
+            ref={monocularMaterialRef}
+            transparent={true}
+            opacity={1.0}
+            depthTest={false}
+            depthWrite={false}
+            uniforms={monocularUniforms}
+            vertexShader={`
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `}
+            fragmentShader={`
+              varying vec2 vUv;
+              uniform float uGradient;
+              
+              void main() {
+                vec2 uv = vUv;
+                
+                // uGradient: 0.0 = left side covered, 0.5 = center, 1.0 = right side covered
+                
+                // Create gradient that darkens the appropriate side
+                float opacity;
+                
+                if (uGradient < 0.5) {
+                  // Left side coverage - gradient from left
+                  float gradientPos = (0.5 - uGradient) * 2.0; // 0.0 to 1.0
+                  opacity = smoothstep(0.0, 0.6, gradientPos - uv.x + 0.3);
+                } else {
+                  // Right side coverage - gradient from right  
+                  float gradientPos = (uGradient - 0.5) * 2.0; // 0.0 to 1.0
+                  opacity = smoothstep(0.0, 0.6, gradientPos + uv.x - 0.7);
+                }
+                
+                // Pure black overlay
+                vec3 blackout = vec3(0.0, 0.0, 0.0);
+                
+                gl_FragColor = vec4(blackout, opacity);
               }
             `}
           />

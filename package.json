@@ -13,7 +13,7 @@
     "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.2.0",
     "@react-three/rapier": "^2.1.0",
-    "@react-three/xr": "^6.6.22",
+    "@react-three/xr": "^6.6.25",
     "@tanstack/react-router": "^1.130.12",
     "@tanstack/router-devtools": "^1.130.13",
     "@types/howler": "^2.2.12",

@@ -6,7 +6,12 @@ import {
   RigidBody,
   useRapier,
 } from "@react-three/rapier";
-import { useXR, useXRInputSourceState, XROrigin } from "@react-three/xr";
+import {
+  useXR,
+  useXRControllerLocomotion,
+  useXRInputSourceState,
+  XROrigin,
+} from "@react-three/xr";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -49,6 +54,7 @@ export function CharacterPlayer() {
   // XR and controllers
   const { session } = useXR();
   const { gl } = useThree();
+  // VR controller input
   const leftController = useXRInputSourceState("controller", "left");
   const rightController = useXRInputSourceState("controller", "right");
 
@@ -62,12 +68,34 @@ export function CharacterPlayer() {
   const isJumpingRef = useRef(false);
   const textRef = useRef(null);
 
-  // Track initial head rotation in XR to calculate relative offset
-  const initialHeadRotationRef = useRef<number | null>(null);
   const [debugText, setDebugText] = useState("rotation: 0°");
 
-  // Smooth dampening for head rotation
-  const dampedHeadRotationRef = useRef(0);
+  // Use XRControllerLocomotion to control the character RigidBody directly
+  useXRControllerLocomotion(
+    (velocity: THREE.Vector3, rotationYVelocity: number) => {
+      if (playerRef.current && session) {
+        // Apply smooth VR velocity to the RigidBody position (X,Z only - no flying!)
+        const currentPos = playerRef.current.translation();
+        playerRef.current.setTranslation(
+          {
+            x: currentPos.x + velocity.x,
+            y: currentPos.y, // Keep Y unchanged - no vertical movement
+            z: currentPos.z + velocity.z,
+          },
+          true
+        );
+
+        // Apply smooth rotation to the player group
+        if (playerGroupRef.current) {
+          playerGroupRef.current.rotation.y += rotationYVelocity;
+          setRotation(playerGroupRef.current.rotation.y);
+        }
+      }
+    },
+    {
+      speed: 0.025,
+    }
+  );
 
   // Initialize character controller
   useEffect(() => {
@@ -118,7 +146,7 @@ export function CharacterPlayer() {
       jump,
     } = get();
 
-    // Get XR controller input
+    // Get XR controller input with velocity-sensitive movement
     let xrMovementX = 0;
     let xrMovementZ = 0;
     let xrRotationInput = 0;
@@ -132,6 +160,7 @@ export function CharacterPlayer() {
         if (thumbstick) {
           const xAxis = thumbstick.xAxis ?? 0;
           const yAxis = thumbstick.yAxis ?? 0;
+          // Keep the analog values for velocity-sensitive movement
           xrMovementX = Math.abs(xAxis) > 0.1 ? xAxis : 0;
           xrMovementZ = Math.abs(yAxis) > 0.1 ? yAxis : 0;
         }
@@ -153,7 +182,7 @@ export function CharacterPlayer() {
       }
     }
 
-    // ROTATION LOGIC
+    // SIMPLIFIED ROTATION LOGIC
     let currentRotation = rotation;
 
     // ROTATION: Use keyboard and controller input for both desktop and VR
@@ -162,6 +191,7 @@ export function CharacterPlayer() {
 
     if (rotateLeft) rotationDelta += rotationSpeed;
     if (rotateRight) rotationDelta -= rotationSpeed;
+    // VR rotation input
     if (Math.abs(xrRotationInput) > 0.1) {
       rotationDelta -= xrRotationInput * rotationSpeed * 2;
     }
@@ -169,76 +199,34 @@ export function CharacterPlayer() {
     if (rotationDelta !== 0) {
       currentRotation += rotationDelta;
       setRotation(currentRotation);
-
-      // Reset initial head rotation when player manually rotates
-      // so head tracking offset is relative to new orientation
-      if (session) {
-        initialHeadRotationRef.current = null;
-      }
     }
 
-    // Calculate effective rotation including head tracking for XR
-    let effectiveRotation = currentRotation;
-    let headOffset = 0;
-    let rawHeadOffset = 0;
+    // Apply current rotation to the player group
+    playerGroupRef.current.rotation.y = currentRotation;
+
+    // For movement, use head direction in VR or manual rotation in desktop
+    let movementRotation = currentRotation;
 
     if (session && gl.xr.isPresenting) {
       try {
-        // Get XR camera (head) direction
+        // Get XR camera (head) direction for movement only
         const xrCamera = gl.xr.getCamera();
         const headDirection = new THREE.Vector3();
         const e = xrCamera.matrixWorld.elements;
         headDirection.set(-e[8], -e[9], -e[10]).normalize();
 
-        // Get current head rotation
-        const currentHeadRotation = Math.atan2(
-          headDirection.x,
-          headDirection.z
-        );
-
-        // Initialize or get head rotation offset
-        if (initialHeadRotationRef.current === null) {
-          initialHeadRotationRef.current = currentHeadRotation;
-        }
-
-        // Calculate head rotation offset from initial position
-        rawHeadOffset = currentHeadRotation - initialHeadRotationRef.current;
-
-        // Smooth lerp for body rotation only
-        const lerpFactor = 0.03; // Smooth lerp factor for visual body rotation
-
-        // Smoothly lerp damped head rotation toward target
-        const targetBodyRotation = Math.max(
-          -Math.PI / 4,
-          Math.min(Math.PI / 4, rawHeadOffset)
-        ); // ±45 degrees clamp
-        dampedHeadRotationRef.current = THREE.MathUtils.lerp(
-          dampedHeadRotationRef.current,
-          targetBodyRotation,
-          lerpFactor
-        );
-
-        // Use damped rotation for body visual
-        headOffset = dampedHeadRotationRef.current;
-        effectiveRotation = currentRotation + headOffset;
+        // Use head direction for movement calculation
+        movementRotation = Math.atan2(headDirection.x, headDirection.z);
       } catch {
-        // Silently fall back to manual rotation if head tracking fails
+        // Fall back to manual rotation if head tracking fails
       }
     }
 
-    // Apply effective rotation to the player group (includes head tracking in XR)
-    playerGroupRef.current.rotation.y = effectiveRotation;
-
-    // Simple movement rotation: player rotation + head offset
-    const movementRotation = currentRotation + rawHeadOffset;
-
     setDebugText(
-      `Player: ${((currentRotation * 180) / Math.PI).toFixed(0)}° Body: ${(
-        (headOffset * 180) /
+      `Visual: ${((currentRotation * 180) / Math.PI).toFixed(0)}° Movement: ${(
+        (movementRotation * 180) /
         Math.PI
-      ).toFixed(0)}° Movement: ${((movementRotation * 180) / Math.PI).toFixed(
-        0
-      )}°`
+      ).toFixed(0)}° ${session ? "(Head)" : "(Manual)"}`
     );
 
     // MOVEMENT LOGIC
@@ -264,38 +252,25 @@ export function CharacterPlayer() {
       movementZ -= Math.sin(currentRotation) * moveSpeed;
     }
 
-    // XR Controller movement - use effective rotation (includes head tracking)
+    // Manual VR Controller input (fallback/debugging alongside smooth locomotion)
     if (Math.abs(xrMovementX) > 0.1 || Math.abs(xrMovementZ) > 0.1) {
-      const vrMoveSpeed = moveSpeed * 1.5; // Make VR movement 1.5x faster
+      const vrMoveSpeed = moveSpeed * 1.5;
+      const correctedX = xrMovementX;
+      const correctedZ = xrMovementZ;
 
-      // Get corrected input (invert both X and Z)
-      const correctedX = -xrMovementX;
-      const correctedZ = -xrMovementZ;
-
-      // Use full head direction for movement (calculated above)
-      // movementRotation is already calculated above with currentRotation + rawHeadOffset
-
-      // Apply movement using movement rotation - back to working version
-      // Forward/Back (correctedZ)
       if (correctedZ > 0) {
-        // Forward
         movementX -= Math.sin(movementRotation) * correctedZ * vrMoveSpeed;
         movementZ -= Math.cos(movementRotation) * correctedZ * vrMoveSpeed;
       } else if (correctedZ < 0) {
-        // Back
         movementX +=
           Math.sin(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
         movementZ +=
           Math.cos(movementRotation) * Math.abs(correctedZ) * vrMoveSpeed;
       }
-
-      // Left/Right (correctedX)
       if (correctedX > 0) {
-        // Left
         movementX -= Math.cos(movementRotation) * correctedX * vrMoveSpeed;
         movementZ += Math.sin(movementRotation) * correctedX * vrMoveSpeed;
       } else if (correctedX < 0) {
-        // Right
         movementX +=
           Math.cos(movementRotation) * Math.abs(correctedX) * vrMoveSpeed;
         movementZ -=
@@ -412,9 +387,10 @@ export function CharacterPlayer() {
         <mesh position={[0, scale - 1 + cameraOffsetY, -0.51]} scale={0.1}>
           <sphereGeometry args={[1]} />
           <meshBasicMaterial color="yellow" />
-          {/* XR Origin for VR locomotion */}
-          {session && <XROrigin />}
         </mesh>
+
+        {/* XR Origin for VR locomotion - positioned at camera height */}
+        {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
 
         <mesh
           position={[0, scale - 1 + (cameraOffsetY - 0.2), -1.5]}

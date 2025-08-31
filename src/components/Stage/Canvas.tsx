@@ -1,6 +1,6 @@
 import { KeyboardControls, OrbitControls, Stage } from "@react-three/drei";
 import { Canvas as R3FCanvas } from "@react-three/fiber";
-import { XR, createXRStore } from "@react-three/xr";
+import { createXRStore, XR } from "@react-three/xr";
 import { CameraHUD } from "../CameraHUD";
 import { ModelControls, ModelRenderer } from "../ModelLoader";
 import XRPostprocessing from "./PostProcessing";
@@ -52,6 +52,9 @@ export const Canvas = () => (
         className="w-full h-full"
         shadows
         //frameloop="demand"
+        camera={{
+          fov: 1,
+        }}
       >
         <XR store={store}>
           <directionalLight
@@ -67,6 +70,7 @@ export const Canvas = () => (
             shadow-camera-bottom={-20}
             shadow-bias={-0.0001}
           />
+
           <Stage
             environment={{
               preset: "sunset",

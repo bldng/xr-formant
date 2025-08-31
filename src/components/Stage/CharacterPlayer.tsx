@@ -13,8 +13,9 @@ import {
   XROrigin,
 } from "@react-three/xr";
 import { useControls } from "leva";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { useModels } from "../ModelLoader";
 
 type Controls =
   | "forward"
@@ -35,6 +36,8 @@ export function CharacterPlayer() {
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
   const [debugText, setDebugText] = useState("");
+  const [position, setPosition] = useState(new THREE.Vector3(-20, 2, 0));
+  const { registerTeleportHandler } = useModels();
 
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
@@ -112,6 +115,34 @@ export function CharacterPlayer() {
     return baseSpeed;
   };
 
+  // Teleport handler
+  const handleTeleport = useCallback((newPosition: THREE.Vector3) => {
+    if (playerRef.current) {
+      // Adjust teleport position to account for player capsule height
+      // Player capsule has height 0.9 and radius 0.5, so we need to place the center above the target
+      const adjustedPosition = new THREE.Vector3(
+        newPosition.x,
+        newPosition.y + 1.5, // Place player center above the teleport target
+        newPosition.z
+      );
+      
+      // Update position state
+      setPosition(adjustedPosition);
+      
+      // Apply to physics body
+      playerRef.current.setTranslation({
+        x: adjustedPosition.x,
+        y: adjustedPosition.y,
+        z: adjustedPosition.z,
+      }, true);
+      
+      // Reset velocity to prevent physics conflicts
+      playerRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      velocityRef.current = { x: 0, y: 0, z: 0 };
+      isJumpingRef.current = false;
+    }
+  }, []);
+
   // Use XRControllerLocomotion to control the character RigidBody directly
   useXRControllerLocomotion(
     (velocity: THREE.Vector3, rotationYVelocity: number) => {
@@ -138,6 +169,13 @@ export function CharacterPlayer() {
       speed: getXRSpeed(),
     }
   );
+
+  // Register teleport handler
+  useEffect(() => {
+    if (registerTeleportHandler) {
+      registerTeleportHandler(handleTeleport);
+    }
+  }, [registerTeleportHandler, handleTeleport]);
 
   // Initialize character controller
   useEffect(() => {
@@ -435,8 +473,7 @@ export function CharacterPlayer() {
     <RigidBody
       ref={playerRef}
       type="kinematicVelocity"
-      // position={[0, 1.399, 0]}
-      position={[-20, 2, 0]}
+      position={[position.x, position.y, position.z]}
       lockRotations={true}
     >
       <CapsuleCollider args={[0.9, 0.5]} />

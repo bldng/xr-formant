@@ -33,7 +33,7 @@ export function XRVisualFilter() {
     cataractIntensity,
     retinopathy,
     retinopathyIntensity,
-  } = useControls({
+  } = useControls("Visual Layers", {
     glasses: { value: false },
     vignetteIntensity: { value: 50, min: 0, max: 100, step: 1 },
     blurEnabled: { value: false },

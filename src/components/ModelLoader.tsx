@@ -1,5 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
+import { TeleportTarget } from "@react-three/xr";
+import { useControls } from "leva";
 import {
   createContext,
   Suspense,
@@ -39,7 +41,12 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   console.log("GLTFModel component rendering with URL:", url);
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
-  const { setModelLoading } = useModels();
+  const { setModelLoading, teleportPlayer } = useModels();
+  
+  // Teleportation controls
+  const { showTeleportTargets } = useControls("Teleportation", {
+    showTeleportTargets: false,
+  });
 
   console.log("GLTF scene loaded:", scene);
 
@@ -80,12 +87,46 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
     }
   });
 
+  // Create teleport planes for each story/floor spanning full model dimensions
+  const teleportPlanes = [];
+  const storyHeight = 3; // 3 meters per story
+  const storiesCount = Math.ceil(size.y / storyHeight);
+  
+  for (let story = 0; story < storiesCount; story++) {
+    const yPosition = position[1] + (story + 1) * storyHeight;
+    teleportPlanes.push(
+      <TeleportTarget 
+        key={`story-${story}`}
+        onTeleport={(teleportPosition) => {
+          console.log(`Story ${story} teleport to:`, teleportPosition);
+          if (teleportPlayer) {
+            teleportPlayer(teleportPosition);
+          }
+        }}
+      >
+        <mesh 
+          position={[position[0], yPosition, position[2]]} 
+          visible={true}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[size.x * 2, size.z * 2]} />
+          <meshBasicMaterial color="blue" transparent opacity={0.3} side={THREE.DoubleSide} />
+        </mesh>
+      </TeleportTarget>
+    );
+  }
+
   return (
-    <RigidBody type="fixed" position={position} colliders="trimesh">
-      <group ref={modelRef} castShadow receiveShadow scale={[2, 2, 2]}>
-        <primitive object={clonedScene} />
-      </group>
-    </RigidBody>
+    <>
+      <RigidBody type="fixed" position={position} colliders="trimesh">
+        <group ref={modelRef} castShadow receiveShadow scale={[2, 2, 2]}>
+          <primitive object={clonedScene} />
+        </group>
+      </RigidBody>
+      
+      {/* Teleport grid - only show if enabled */}
+      {showTeleportTargets && teleportPlanes}
+    </>
   );
 } // Context for sharing model state between components
 
@@ -94,6 +135,8 @@ interface ModelContextType {
   setModel: (url: string) => void;
   isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
+  teleportPlayer?: (position: THREE.Vector3) => void;
+  registerTeleportHandler?: (handler: (position: THREE.Vector3) => void) => void;
 }
 
 const ModelContext = createContext<ModelContextType | null>(null);
@@ -113,6 +156,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     position: [number, number, number];
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(null);
 
   const setModel = useCallback((url: string) => {
     console.log("Setting model with URL:", url);
@@ -129,9 +173,19 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     setIsModelLoading(isLoading);
   }, []);
 
+  const teleportPlayer = useCallback((position: THREE.Vector3) => {
+    if (teleportHandlerRef.current) {
+      teleportHandlerRef.current(position);
+    }
+  }, []);
+
+  const registerTeleportHandler = useCallback((handler: (position: THREE.Vector3) => void) => {
+    teleportHandlerRef.current = handler;
+  }, []);
+
   return (
     <ModelContext.Provider
-      value={{ model, setModel, isModelLoading, setModelLoading }}
+      value={{ model, setModel, isModelLoading, setModelLoading, teleportPlayer, registerTeleportHandler }}
     >
       {children}
     </ModelContext.Provider>
@@ -343,7 +397,7 @@ export function ModelDropZone() {
 }
 
 export function ModelRenderer({ children }: { children?: React.ReactNode }) {
-  const { model, isModelLoading } = useModels();
+  const { model, isModelLoading, teleportPlayer } = useModels();
 
   return (
     <>
@@ -363,13 +417,20 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
 
         {children}
         {/* Global floor with slight offset to prevent collision instability */}
-        <RigidBody type="fixed" position={[0, -0.51, 0]}>
-          <CuboidCollider args={[1000, 0.5, 1000]} />
-          <mesh>
-            <boxGeometry args={[50, 1, 50]} />
-            <meshStandardMaterial color="white" />
-          </mesh>
-        </RigidBody>
+        <TeleportTarget onTeleport={(position) => {
+          console.log("Floor teleport to:", position);
+          if (teleportPlayer) {
+            teleportPlayer(position);
+          }
+        }}>
+          <RigidBody type="fixed" position={[0, -0.51, 0]}>
+            <CuboidCollider args={[1000, 0.5, 1000]} />
+            <mesh>
+              <boxGeometry args={[50, 1, 50]} />
+              <meshStandardMaterial color="white" />
+            </mesh>
+          </RigidBody>
+        </TeleportTarget>
       </Physics>
     </>
   );

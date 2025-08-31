@@ -3,10 +3,12 @@ import { Canvas as R3FCanvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
 import { CameraHUD } from "../CameraHUD";
 import { ModelControls, ModelRenderer } from "../ModelLoader";
-import XRPostprocessing from "./PostProcessing";
 import { XRVisualFilter } from "./XRVisualFilter";
 
-const store = createXRStore();
+const store = createXRStore({
+  hand: { teleportPointer: true },
+  controller: { teleportPointer: true },
+});
 
 type Controls = {
   forward: "forward";
@@ -89,7 +91,7 @@ export const Canvas = () => (
           <CameraHUD />
           <OrbitControls />
           <XRVisualFilter />
-          <XRPostprocessing />
+          {/* <XRPostprocessing /> */}
         </XR>
       </R3FCanvas>
     </KeyboardControls>

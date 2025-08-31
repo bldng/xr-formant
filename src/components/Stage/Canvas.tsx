@@ -91,7 +91,6 @@ export const Canvas = () => (
           <CameraHUD />
           <OrbitControls />
           <XRVisualFilter />
-          {/* <XRPostprocessing /> */}
         </XR>
       </R3FCanvas>
     </KeyboardControls>

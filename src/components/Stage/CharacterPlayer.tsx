@@ -49,11 +49,12 @@ export function CharacterPlayer() {
     });
 
   // Vestibular condition controls
-  const { vestibularEnabled, oscillationAmplitude, oscillationFrequency } = useControls("Vestibular Condition", {
-    vestibularEnabled: false,
-    oscillationAmplitude: { value: 0.5, min: 0.1, max: 5.0, step: 0.1 },
-    oscillationFrequency: { value: 0.8, min: 0.1, max: 3.0, step: 0.1 },
-  });
+  const { vestibularEnabled, oscillationAmplitude, oscillationFrequency } =
+    useControls("Vestibular Condition", {
+      vestibularEnabled: false,
+      oscillationAmplitude: { value: 0.5, min: 0.1, max: 5.0, step: 0.1 },
+      oscillationFrequency: { value: 0.8, min: 0.1, max: 3.0, step: 0.1 },
+    });
 
   // Stamina state
   const [stamina, setStamina] = useState(maxStamina);
@@ -541,10 +542,10 @@ export function CharacterPlayer() {
               <meshBasicMaterial color="teal" transparent opacity={0.8} />
             </mesh>
             <mesh
-              position={[0, scale - 1 + (cameraOffsetY - 0.2), -1.5]}
+              position={[0, scale - 1 + (cameraOffsetY - 0.2), -0.45]}
               scale={0.5}
             >
-              <boxGeometry args={[0.1, 0.1, 5]} />
+              <boxGeometry args={[0.1, 0.1, 1]} />
               <meshBasicMaterial color="blue" />
             </mesh>
 

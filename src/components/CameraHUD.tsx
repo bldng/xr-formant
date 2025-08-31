@@ -25,6 +25,11 @@ export function CameraHUD() {
   useFrame(() => {
     if (!playerCameraRef.current) return;
 
+    // Configure camera layers to see both scene (0) and filters (1)
+    playerCameraRef.current.layers.disableAll();
+    playerCameraRef.current.layers.enable(0); // Scene objects
+    playerCameraRef.current.layers.enable(1); // XR filters
+
     // Force correct aspect ratio
     playerCameraRef.current.aspect = 4/3;
     playerCameraRef.current.updateProjectionMatrix();

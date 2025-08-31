@@ -31,6 +31,7 @@ export function XRVisualFilter() {
 
   const {
     glasses,
+    vignette,
     vignetteIntensity,
     blurIntensity,
     blurEnabled,
@@ -46,9 +47,11 @@ export function XRVisualFilter() {
     monocularGradient,
   } = useControls("Visual Layers", {
     glasses: { value: false },
-    vignetteIntensity: { value: 50, min: 0, max: 100, step: 1 },
+
     blurEnabled: { value: false },
     blurIntensity: { value: 5, min: 1.0, max: 10.0, step: 0.1 },
+    vignette: { value: false },
+    vignetteIntensity: { value: 40, min: 20, max: 90, step: 5 },
     amdVision: { value: false },
     amdIntensity: { value: 10, min: 10, max: 90, step: 5 },
     cataract: { value: false },
@@ -60,13 +63,63 @@ export function XRVisualFilter() {
   });
 
   useFrame((state) => {
-    if (boxRef.current && gl.xr.isPresenting) {
-      // Just add the box as child to the XR camera directly
-      const xrCamera = gl.xr.getCamera();
-      if (xrCamera && boxRef.current.parent !== xrCamera) {
-        xrCamera.add(boxRef.current);
-        boxRef.current.position.set(0, 0, -1); // 1 unit in front in camera space
-        boxRef.current.rotation.set(0, 0, 0);
+    if (boxRef.current) {
+      // Set filter layer to 1 so it's visible to PIP camera but not main camera
+      boxRef.current.layers.set(1);
+      boxRef.current.traverse((child) => {
+        child.layers.set(1);
+      });
+
+      if (gl.xr.isPresenting) {
+        // In XR mode, position filters in front of XR camera
+        const xrCamera = gl.xr.getCamera();
+        if (xrCamera && boxRef.current.parent !== xrCamera) {
+          xrCamera.add(boxRef.current);
+          boxRef.current.position.set(0, 0, -1); // 1 unit in front in camera space
+          boxRef.current.rotation.set(0, 0, 0);
+        }
+      } else {
+        // In non-XR mode, position filters relative to player camera
+        const player = state.scene.getObjectByName("player");
+        if (player) {
+          // Get player position and rotation
+          const worldPosition = new THREE.Vector3();
+          const worldQuaternion = new THREE.Quaternion();
+          const worldScale = new THREE.Vector3();
+          player.matrixWorld.decompose(
+            worldPosition,
+            worldQuaternion,
+            worldScale
+          );
+
+          // Find eye level indicator or calculate eye height
+          const eyeLevelIndicator = player.children.find(
+            (child) =>
+              child instanceof THREE.Mesh &&
+              (child.material as THREE.MeshBasicMaterial)?.color?.getHex() ===
+                0xffff00
+          );
+
+          const eyePosition = worldPosition.clone();
+          if (eyeLevelIndicator) {
+            eyeLevelIndicator.getWorldPosition(eyePosition);
+          } else {
+            eyePosition.y += 0.8 * worldScale.y; // Fallback eye height
+          }
+
+          // Add filters as child to scene if not already
+          if (boxRef.current.parent !== state.scene) {
+            state.scene.add(boxRef.current);
+          }
+
+          // Position filters in front of player's eyes
+          const forward = new THREE.Vector3(0, 0, -1);
+          forward.applyQuaternion(worldQuaternion);
+
+          boxRef.current.position.copy(eyePosition);
+          boxRef.current.position.add(forward.multiplyScalar(1.1)); // Closer for better filter visibility
+          boxRef.current.setRotationFromQuaternion(worldQuaternion);
+        }
       }
     }
 
@@ -85,17 +138,10 @@ export function XRVisualFilter() {
     }
   });
 
-  // Only render in XR mode
-  if (!gl.xr.isPresenting) return null;
+  // Always render filters - layer system will control visibility
 
   return (
     <group ref={boxRef}>
-      {/* Test Box */}
-      {/* <mesh scale={[0.3, 0.2, 0.05]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="red" />
-      </mesh> */}
-
       {glasses && (
         <mesh position={[0, 0.5, -1]} scale={[15, 15, 1]}>
           <sphereGeometry args={[0.2]} />
@@ -121,30 +167,37 @@ export function XRVisualFilter() {
         </mesh>
       )}
 
-      {vignetteIntensity > 0 && (
-        <mesh position={[0, 0, -0.2]}>
+      {vignette && (
+        <mesh
+          position={[0, 0, -0.15]}
+          scale={[vignetteIntensity / 25.0, vignetteIntensity / 25.0, 1]}
+        >
           <planeGeometry args={[4, 4]} />
           <shaderMaterial
             transparent={true}
-            opacity={vignetteIntensity / 100.0}
+            opacity={1.0}
             depthTest={false}
             depthWrite={false}
             vertexShader={`
-              varying vec2 vUv;
-              void main() {
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-              }
-            `}
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `}
             fragmentShader={`
-              varying vec2 vUv;
-              void main() {
-                vec2 center = vec2(0.5, 0.5);
-                float distance = length(vUv - center);
-                float vignette = smoothstep(0.15, 0.7, distance);
-                gl_FragColor = vec4(0.0, 0.0, 0.0, vignette);
-              }
-            `}
+        varying vec2 vUv;
+
+        void main() {
+          vec2 center = vec2(0.5, 0.5);
+          float distance = length(vUv - center);
+
+          // Smaller visible circle in the middle
+          float amd = smoothstep(0.05, 0.2, distance);
+
+          gl_FragColor = vec4(0.0, 0.0, 0.0, amd);
+        }
+      `}
           />
         </mesh>
       )}

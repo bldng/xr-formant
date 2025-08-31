@@ -57,6 +57,11 @@ export const Canvas = () => (
         camera={{
           fov: 1,
         }}
+        onCreated={({ camera }) => {
+          // Main camera should not see layer 1 (filters)
+          camera.layers.disableAll();
+          camera.layers.enable(0); // Default layer for scene objects
+        }}
       >
         <XR store={store}>
           <directionalLight

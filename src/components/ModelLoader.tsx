@@ -1,6 +1,5 @@
 import { useGLTF } from "@react-three/drei";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
-import { useXRControllerLocomotion, XROrigin } from "@react-three/xr";
 import {
   createContext,
   Suspense,
@@ -360,8 +359,7 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
         </Suspense>
 
         {/* <Player /> */}
-        {true && <CharacterPlayer />}
-        {false && <SimpleLocomotion />}
+        <CharacterPlayer />
 
         {children}
         {/* Global floor with slight offset to prevent collision instability */}
@@ -374,30 +372,6 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
         </RigidBody>
       </Physics>
     </>
-  );
-}
-
-export function SimpleLocomotion() {
-  const xrOriginRef = useRef<THREE.Group>(null);
-
-  // moveFn will be called by the hook with controller thumbstick input
-  useXRControllerLocomotion(
-    (velocity: THREE.Vector3, rotationYVelocity: number) => {
-      if (!xrOriginRef.current) return;
-
-      // Move XROrigin by velocity (already scaled by speed in the hook)
-      xrOriginRef.current.position.add(velocity);
-
-      // Apply yaw rotation to the XROrigin
-      xrOriginRef.current.rotation.y += rotationYVelocity;
-    },
-    {
-      speed: 0.01, // movement speed multiplier
-    }
-  );
-
-  return (
-    <XROrigin ref={xrOriginRef}>{/* Your scene content goes here */}</XROrigin>
   );
 }
 

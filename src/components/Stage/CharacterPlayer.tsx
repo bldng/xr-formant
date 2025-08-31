@@ -12,6 +12,7 @@ import {
   useXRInputSourceState,
   XROrigin,
 } from "@react-three/xr";
+import { useControls } from "leva";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
@@ -28,12 +29,38 @@ type Controls =
 
 export function CharacterPlayer() {
   const playerRef = useRef<RapierRigidBody>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
   const playerGroupRef = useRef<THREE.Group>(null);
   const [, get] = useKeyboardControls<Controls>();
   const [scale, setScale] = useState(0.5);
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
+  const [showPlayer, setShowPlayer] = useState(false);
+
+  // Speed and stamina controls
+  const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
+    useControls("Character Movement", {
+      staminaEnabled: false,
+      maxWalkingSpeed: { value: 5, min: 1, max: 15, step: 0.5 },
+      maxStamina: { value: 100, min: 50, max: 200, step: 10 },
+      staminaRegenRate: { value: 20, min: 5, max: 50, step: 5 },
+    });
+
+  // Stamina state
+  const [stamina, setStamina] = useState(maxStamina);
+  const staminaRef = useRef(maxStamina);
+
+  // Initialize and sync stamina ref
+  useEffect(() => {
+    // Initialize stamina ref if not set
+    if (staminaRef.current !== stamina) {
+      staminaRef.current = stamina;
+    }
+
+    if (stamina > maxStamina) {
+      setStamina(maxStamina);
+      staminaRef.current = maxStamina;
+    }
+  }, [maxStamina, stamina]);
 
   // Hardcoded character controller settings
   const slopeSettings = useMemo(
@@ -70,6 +97,23 @@ export function CharacterPlayer() {
 
   const [debugText, setDebugText] = useState("rotation: 0°");
 
+  // Calculate XR locomotion speed based on stamina
+  const getXRSpeed = () => {
+    const baseSpeed = 0.025;
+
+    if (!staminaEnabled) return baseSpeed;
+
+    if (staminaRef.current < 5) {
+      return 0; // No movement when stamina is below 5
+    } else if (staminaRef.current < maxStamina * 0.3) {
+      return baseSpeed * 0.3; // 30% speed when stamina is below 30%
+    } else if (staminaRef.current < maxStamina * 0.6) {
+      return baseSpeed * 0.7; // 70% speed when stamina is below 60%
+    }
+
+    return baseSpeed;
+  };
+
   // Use XRControllerLocomotion to control the character RigidBody directly
   useXRControllerLocomotion(
     (velocity: THREE.Vector3, rotationYVelocity: number) => {
@@ -93,7 +137,7 @@ export function CharacterPlayer() {
       }
     },
     {
-      speed: 0.025,
+      speed: getXRSpeed(),
     }
   );
 
@@ -222,41 +266,66 @@ export function CharacterPlayer() {
       }
     }
 
-    setDebugText(
-      `Visual: ${((currentRotation * 180) / Math.PI).toFixed(0)}° Movement: ${(
-        (movementRotation * 180) /
-        Math.PI
-      ).toFixed(0)}° ${session ? "(Head)" : "(Manual)"}`
-    );
-
     // MOVEMENT LOGIC
     let movementX = 0;
     let movementZ = 0;
-    const moveSpeed = 5;
+
+    // Calculate current speed based on stamina
+    let currentSpeed = maxWalkingSpeed;
+    if (staminaEnabled) {
+      if (staminaRef.current < 5) {
+        // No movement when stamina is below 5 (prevents race condition)
+        currentSpeed = 0;
+      } else if (staminaRef.current < maxStamina * 0.3) {
+        // Reduce speed to 30% when stamina is below 30%
+        currentSpeed = maxWalkingSpeed * 0.3;
+      } else if (staminaRef.current < maxStamina * 0.6) {
+        // Reduce speed to 70% when stamina is below 60%
+        currentSpeed = maxWalkingSpeed * 0.7;
+      }
+    }
+
+    const staminaText = staminaEnabled
+      ? ` | Stamina: ${Math.round(
+          staminaRef.current
+        )}/${maxStamina} (${Math.round(
+          (staminaRef.current / maxStamina) * 100
+        )}%) Speed: ${currentSpeed.toFixed(1)}`
+      : "";
+
+    setDebugText(staminaText);
+
+    // Track if player is moving for stamina calculation
+    let isMoving = false;
 
     // Keyboard movement
     if (forward) {
-      movementX -= Math.sin(currentRotation) * moveSpeed;
-      movementZ -= Math.cos(currentRotation) * moveSpeed;
+      movementX -= Math.sin(currentRotation) * currentSpeed;
+      movementZ -= Math.cos(currentRotation) * currentSpeed;
+      isMoving = true;
     }
     if (back) {
-      movementX += Math.sin(currentRotation) * moveSpeed;
-      movementZ += Math.cos(currentRotation) * moveSpeed;
+      movementX += Math.sin(currentRotation) * currentSpeed;
+      movementZ += Math.cos(currentRotation) * currentSpeed;
+      isMoving = true;
     }
     if (left) {
-      movementX -= Math.cos(currentRotation) * moveSpeed;
-      movementZ += Math.sin(currentRotation) * moveSpeed;
+      movementX -= Math.cos(currentRotation) * currentSpeed;
+      movementZ += Math.sin(currentRotation) * currentSpeed;
+      isMoving = true;
     }
     if (right) {
-      movementX += Math.cos(currentRotation) * moveSpeed;
-      movementZ -= Math.sin(currentRotation) * moveSpeed;
+      movementX += Math.cos(currentRotation) * currentSpeed;
+      movementZ -= Math.sin(currentRotation) * currentSpeed;
+      isMoving = true;
     }
 
     // Manual VR Controller input (fallback/debugging alongside smooth locomotion)
     if (Math.abs(xrMovementX) > 0.1 || Math.abs(xrMovementZ) > 0.1) {
-      const vrMoveSpeed = moveSpeed * 1.5;
+      const vrMoveSpeed = currentSpeed * 1.5;
       const correctedX = xrMovementX;
       const correctedZ = xrMovementZ;
+      isMoving = true;
 
       if (correctedZ > 0) {
         movementX -= Math.sin(movementRotation) * correctedZ * vrMoveSpeed;
@@ -305,6 +374,25 @@ export function CharacterPlayer() {
     }
     if ((shrink || xrShrink) && scale > minScale) {
       setScale(Math.max(scale - scaleSpeed, minScale));
+    }
+
+    // STAMINA SYSTEM
+    if (staminaEnabled) {
+      if (isMoving) {
+        // Deplete stamina when moving
+        const staminaDrain = 15 * delta; // Drain per second
+        const newStamina = Math.max(0, staminaRef.current - staminaDrain);
+        staminaRef.current = newStamina;
+        setStamina(newStamina);
+      } else {
+        // Regenerate stamina when not moving
+        const newStamina = Math.min(
+          maxStamina,
+          staminaRef.current + staminaRegenRate * delta
+        );
+        staminaRef.current = newStamina;
+        setStamina(newStamina);
+      }
     }
 
     // PHYSICS
@@ -359,54 +447,51 @@ export function CharacterPlayer() {
 
       {/* Player group - everything rotates together */}
       <group ref={playerGroupRef}>
-        {/* Visual representation that scales height only from bottom */}
-        <mesh
-          ref={meshRef}
-          name="player"
-          scale={[1, scale, 1]}
-          position={[0, scale - 1, 0]}
-        >
-          <boxGeometry args={[1, 2, 1]} />
-          <meshBasicMaterial color="green" transparent opacity={0.8} />
-        </mesh>
-
         {/* Debug collision visualization */}
         {showDebug && (
-          <mesh position={[0, 0, 0]}>
-            <capsuleGeometry args={[0.5, 0.9]} />
-            <meshBasicMaterial
-              color="red"
-              wireframe
-              transparent
-              opacity={0.5}
-            />
-          </mesh>
+          <group>
+            <Text
+              fontSize={0.1}
+              color="white"
+              position={[0, scale - 1 + cameraOffsetY, -2.5]}
+              ref={textRef}
+            >
+              {debugText}
+            </Text>
+          </group>
         )}
 
-        {/* Camera eye indicator - positioned on front face */}
-        <mesh position={[0, scale - 1 + cameraOffsetY, -0.51]} scale={0.1}>
-          <sphereGeometry args={[1]} />
-          <meshBasicMaterial color="yellow" />
-        </mesh>
+        {showPlayer && (
+          <group name="player">
+            <mesh position={[0, 0, 0]}>
+              <capsuleGeometry args={[0.5, 0.9]} />
+              <meshBasicMaterial
+                color="red"
+                wireframe
+                transparent
+                opacity={0.5}
+              />
+            </mesh>
+            <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
+              <boxGeometry args={[1, 2, 1]} />
+              <meshBasicMaterial color="green" transparent opacity={0.8} />
+            </mesh>
+            <mesh
+              position={[0, scale - 1 + (cameraOffsetY - 0.2), -1.5]}
+              scale={0.5}
+            >
+              <boxGeometry args={[0.1, 0.1, 5]} />
+              <meshBasicMaterial color="blue" />
+            </mesh>
 
+            <mesh position={[0, scale - 1 + cameraOffsetY, -0.51]} scale={0.1}>
+              <sphereGeometry args={[1]} />
+              <meshBasicMaterial color="yellow" />
+            </mesh>
+          </group>
+        )}
         {/* XR Origin for VR locomotion - positioned at camera height */}
         {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
-
-        <mesh
-          position={[0, scale - 1 + (cameraOffsetY - 0.2), -1.5]}
-          scale={0.5}
-        >
-          <boxGeometry args={[0.1, 0.1, 5]} />
-          <meshBasicMaterial color="blue" />
-        </mesh>
-        <Text
-          fontSize={0.1}
-          color="white"
-          position={[0, scale - 1 + cameraOffsetY, -2.5]}
-          ref={textRef}
-        >
-          {debugText}
-        </Text>
       </group>
     </RigidBody>
   );

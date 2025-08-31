@@ -48,6 +48,13 @@ export function CharacterPlayer() {
       staminaRegenRate: { value: 20, min: 5, max: 50, step: 5 },
     });
 
+  // Vestibular condition controls
+  const { vestibularEnabled, oscillationAmplitude, oscillationFrequency } = useControls("Vestibular Condition", {
+    vestibularEnabled: false,
+    oscillationAmplitude: { value: 0.5, min: 0.1, max: 5.0, step: 0.1 },
+    oscillationFrequency: { value: 0.8, min: 0.1, max: 3.0, step: 0.1 },
+  });
+
   // Stamina state
   const [stamina, setStamina] = useState(maxStamina);
   const staminaRef = useRef(maxStamina);
@@ -125,17 +132,20 @@ export function CharacterPlayer() {
         newPosition.y + 1.5, // Place player center above the teleport target
         newPosition.z
       );
-      
+
       // Update position state
       setPosition(adjustedPosition);
-      
+
       // Apply to physics body
-      playerRef.current.setTranslation({
-        x: adjustedPosition.x,
-        y: adjustedPosition.y,
-        z: adjustedPosition.z,
-      }, true);
-      
+      playerRef.current.setTranslation(
+        {
+          x: adjustedPosition.x,
+          y: adjustedPosition.y,
+          z: adjustedPosition.z,
+        },
+        true
+      );
+
       // Reset velocity to prevent physics conflicts
       playerRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
       velocityRef.current = { x: 0, y: 0, z: 0 };
@@ -206,7 +216,7 @@ export function CharacterPlayer() {
     }
   }, [world, rapier, slopeSettings]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (
       !playerRef.current ||
       !characterControllerRef.current ||
@@ -248,8 +258,8 @@ export function CharacterPlayer() {
         // X button for grow, Y button for shrink
         const xButton = leftController.gamepad["x-button"];
         const yButton = leftController.gamepad["y-button"];
-        xrGrow = xButton?.state === "pressed";
-        xrShrink = yButton?.state === "pressed";
+        xrShrink = xButton?.state === "pressed";
+        xrGrow = yButton?.state === "pressed";
       }
 
       // Right controller thumbstick for rotation
@@ -283,6 +293,27 @@ export function CharacterPlayer() {
 
     // Apply current rotation to the player group
     playerGroupRef.current.rotation.y = currentRotation;
+
+    // Vestibular condition postural instability simulation
+    if (vestibularEnabled && playerGroupRef.current) {
+      const time = state.clock.elapsedTime;
+      const amplitude = oscillationAmplitude * 0.01; // Scale for rotational effect
+      const frequency = oscillationFrequency;
+
+      // Postural sway oscillations with independent amplitude and frequency controls
+      const swayTilt =
+        Math.sin(time * 0.3 * frequency) * amplitude * 0.8 +
+        Math.cos(time * 0.12 * frequency) * amplitude * 0.4;
+      const swayLean =
+        Math.cos(time * 0.25 * frequency) * amplitude * 0.6 +
+        Math.sin(time * 0.08 * frequency) * amplitude * 0.3;
+      const swayTwist = Math.sin(time * 0.18 * frequency) * amplitude * 0.2;
+
+      // Apply subtle rotations to simulate unsteady posture
+      playerGroupRef.current.rotation.x = swayTilt;
+      playerGroupRef.current.rotation.z = swayLean;
+      playerGroupRef.current.rotation.y = currentRotation + swayTwist;
+    }
 
     // For movement, use head direction in VR or manual rotation in desktop
     let movementRotation = currentRotation;

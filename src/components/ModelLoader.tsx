@@ -325,10 +325,10 @@ export function ModelDropZone() {
     >
       {isDragging && (
         <div className="flex items-center justify-center h-full">
-          <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 border-2 border-dashed border-blue-500">
+          <div className="p-8 border-2 border-blue-500 border-dashed rounded-lg bg-white/90 backdrop-blur-md">
             <div className="text-center">
-              <div className="text-4xl mb-4">📦</div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              <div className="mb-4 text-4xl">📦</div>
+              <h3 className="mb-2 text-xl font-semibold text-gray-800">
                 Drop GLTF/GLB Model + Assets
               </h3>
               <p className="text-gray-600">
@@ -417,31 +417,31 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
   };
 
   return (
-    <div className="absolute top-4 left-4 z-20">
+    <div className="absolute z-20 top-4 left-4">
       <div className="flex gap-2 mb-2">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          className="px-4 py-2 text-white transition-colors bg-blue-500 rounded-lg shadow-lg hover:bg-blue-600"
         >
           Load Model
         </button>
         <button
           onClick={handleLoadHafen}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg transition-colors"
+          className="px-4 py-2 text-white transition-colors bg-green-500 rounded-lg shadow-lg hover:bg-green-600"
         >
           Load Hafen
         </button>
         <button
           onClick={onEnterVR}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
         >
           Enter VR
         </button>
       </div>
-      <div className="text-sm text-white bg-black/50 px-2 py-1 rounded">
+      <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
         Model: {model ? "loaded" : "none"}
       </div>
-      <div className="mt-1 text-xs text-white/70 bg-black/30 px-2 py-1 rounded">
+      <div className="px-2 py-1 mt-1 text-xs rounded text-white/70 bg-black/30">
         Tip: Drag & drop for GLTF + assets
       </div>
       <input

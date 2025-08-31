@@ -34,7 +34,7 @@ export function CharacterPlayer() {
   const [scale, setScale] = useState(0.5);
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
-  const [showPlayer, setShowPlayer] = useState(false);
+  const [debugText, setDebugText] = useState("");
 
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
@@ -94,8 +94,6 @@ export function CharacterPlayer() {
   const jumpVelocity = 3;
   const isJumpingRef = useRef(false);
   const textRef = useRef(null);
-
-  const [debugText, setDebugText] = useState("rotation: 0°");
 
   // Calculate XR locomotion speed based on stamina
   const getXRSpeed = () => {
@@ -286,9 +284,7 @@ export function CharacterPlayer() {
     }
 
     const staminaText = staminaEnabled
-      ? ` | Stamina: ${Math.round(
-          staminaRef.current
-        )}/${maxStamina} (${Math.round(
+      ? `Stamina: ${Math.round(staminaRef.current)}/${maxStamina} (${Math.round(
           (staminaRef.current / maxStamina) * 100
         )}%) Speed: ${currentSpeed.toFixed(1)}`
       : "";
@@ -461,12 +457,12 @@ export function CharacterPlayer() {
           </group>
         )}
 
-        {showPlayer && (
+        {!session && (
           <group name="player">
             <mesh position={[0, 0, 0]}>
               <capsuleGeometry args={[0.5, 0.9]} />
               <meshBasicMaterial
-                color="red"
+                color="magenta"
                 wireframe
                 transparent
                 opacity={0.5}
@@ -474,7 +470,7 @@ export function CharacterPlayer() {
             </mesh>
             <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
               <boxGeometry args={[1, 2, 1]} />
-              <meshBasicMaterial color="green" transparent opacity={0.8} />
+              <meshBasicMaterial color="teal" transparent opacity={0.8} />
             </mesh>
             <mesh
               position={[0, scale - 1 + (cameraOffsetY - 0.2), -1.5]}

@@ -26,31 +26,48 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: lazyRouteComponent(() => import("./pages/Model").then(m => ({ default: m.ModelPage }))),
+  component: lazyRouteComponent(() =>
+    import("./pages/Model").then((m) => ({ default: m.ModelPage }))
+  ),
 });
 
 const audioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audio",
-  component: lazyRouteComponent(() => import("./pages/Audio").then(m => ({ default: m.AudioPage }))),
+  component: lazyRouteComponent(() =>
+    import("./pages/Audio").then((m) => ({ default: m.AudioPage }))
+  ),
+});
+
+const arRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ar-lens",
+  component: lazyRouteComponent(() => import("./pages/AR")),
 });
 
 const audioSpatialRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/spatial-audio",
-  component: lazyRouteComponent(() => import("./pages/AudioSpatial").then(m => ({ default: m.AudioSpatialPage }))),
+  component: lazyRouteComponent(() =>
+    import("./pages/AudioSpatial").then((m) => ({
+      default: m.AudioSpatialPage,
+    }))
+  ),
 });
 
 const aboutRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/about",
-  component: lazyRouteComponent(() => import("./pages/About").then(m => ({ default: m.AboutPage }))),
+  component: lazyRouteComponent(() =>
+    import("./pages/About").then((m) => ({ default: m.AboutPage }))
+  ),
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   aboutRoute,
   audioRoute,
+  arRoute,
   audioSpatialRoute,
 ]);
 

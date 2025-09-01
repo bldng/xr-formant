@@ -42,7 +42,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
   const { setModelLoading, teleportPlayer } = useModels();
-  
+
   // Teleportation controls
   const { showTeleportTargets } = useControls("Teleportation", {
     showTeleportTargets: false,
@@ -91,11 +91,11 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   const teleportPlanes = [];
   const storyHeight = 3; // 3 meters per story
   const storiesCount = Math.ceil(size.y / storyHeight);
-  
+
   for (let story = 0; story < storiesCount; story++) {
     const yPosition = position[1] + (story + 1) * storyHeight;
     teleportPlanes.push(
-      <TeleportTarget 
+      <TeleportTarget
         key={`story-${story}`}
         onTeleport={(teleportPosition) => {
           console.log(`Story ${story} teleport to:`, teleportPosition);
@@ -104,13 +104,18 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
           }
         }}
       >
-        <mesh 
-          position={[position[0], yPosition, position[2]]} 
+        <mesh
+          position={[position[0], yPosition, position[2]]}
           visible={true}
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[size.x * 2, size.z * 2]} />
-          <meshBasicMaterial color="blue" transparent opacity={0.3} side={THREE.DoubleSide} />
+          <meshBasicMaterial
+            color="blue"
+            transparent
+            opacity={0.3}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       </TeleportTarget>
     );
@@ -123,7 +128,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
           <primitive object={clonedScene} />
         </group>
       </RigidBody>
-      
+
       {/* Teleport grid - only show if enabled */}
       {showTeleportTargets && teleportPlanes}
     </>
@@ -136,7 +141,9 @@ interface ModelContextType {
   isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
   teleportPlayer?: (position: THREE.Vector3) => void;
-  registerTeleportHandler?: (handler: (position: THREE.Vector3) => void) => void;
+  registerTeleportHandler?: (
+    handler: (position: THREE.Vector3) => void
+  ) => void;
 }
 
 const ModelContext = createContext<ModelContextType | null>(null);
@@ -156,7 +163,9 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     position: [number, number, number];
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(null);
+  const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(
+    null
+  );
 
   const setModel = useCallback((url: string) => {
     console.log("Setting model with URL:", url);
@@ -179,13 +188,23 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const registerTeleportHandler = useCallback((handler: (position: THREE.Vector3) => void) => {
-    teleportHandlerRef.current = handler;
-  }, []);
+  const registerTeleportHandler = useCallback(
+    (handler: (position: THREE.Vector3) => void) => {
+      teleportHandlerRef.current = handler;
+    },
+    []
+  );
 
   return (
     <ModelContext.Provider
-      value={{ model, setModel, isModelLoading, setModelLoading, teleportPlayer, registerTeleportHandler }}
+      value={{
+        model,
+        setModel,
+        isModelLoading,
+        setModelLoading,
+        teleportPlayer,
+        registerTeleportHandler,
+      }}
     >
       {children}
     </ModelContext.Provider>
@@ -417,12 +436,14 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
 
         {children}
         {/* Global floor with slight offset to prevent collision instability */}
-        <TeleportTarget onTeleport={(position) => {
-          console.log("Floor teleport to:", position);
-          if (teleportPlayer) {
-            teleportPlayer(position);
-          }
-        }}>
+        <TeleportTarget
+          onTeleport={(position) => {
+            console.log("Floor teleport to:", position);
+            if (teleportPlayer) {
+              teleportPlayer(position);
+            }
+          }}
+        >
           <RigidBody type="fixed" position={[0, -0.51, 0]}>
             <CuboidCollider args={[1000, 0.5, 1000]} />
             <mesh>
@@ -482,28 +503,25 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       <div className="flex gap-2 mb-2">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-2 text-white transition-colors bg-blue-500 rounded-lg shadow-lg hover:bg-blue-600"
+          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
           Load Model
         </button>
         <button
           onClick={handleLoadHafen}
-          className="px-4 py-2 text-white transition-colors bg-green-500 rounded-lg shadow-lg hover:bg-green-600"
+          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
           Load Hafen
         </button>
         <button
           onClick={onEnterVR}
-          className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+          className="px-4 py-1.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
         >
           Enter VR
         </button>
       </div>
       <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
-        Model: {model ? "loaded" : "none"}
-      </div>
-      <div className="px-2 py-1 mt-1 text-xs rounded text-white/70 bg-black/30">
-        Tip: Drag & drop for GLTF + assets
+        Model: {model ? <span className="font-bold">{model.url}</span> : "none"}
       </div>
       <input
         ref={fileInputRef}

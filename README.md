@@ -29,7 +29,7 @@ bun install
 bun dev
 ```
 
-The application will be available at `https://localhost:5173`
+The application will be available at `https://localhost:5173`. To access it from a device, use the IP provided by vite.
 
 **Note**: HTTPS is required for XR functionality. Vite will guide you through the self-signed certificate setup process on first run. It's safe to accept the self-signed certificate in your browser since you generated it yourself.
 

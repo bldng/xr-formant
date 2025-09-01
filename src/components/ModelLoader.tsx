@@ -511,7 +511,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
           onClick={handleLoadHafen}
           className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
-          Load Hafen
+          Load Example
         </button>
         <button
           onClick={onEnterVR}

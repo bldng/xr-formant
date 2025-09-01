@@ -1,69 +1,40 @@
-# React + TypeScript + Vite
+# XR Formant
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This immersive XR tool invites spatial practitioners to explore how built environments are perceived through different physical and sensory conditions. By experiencing architectural spaces through diverse embodied perspectives, designers can question assumptions, assess accessibility, and deepen understanding of how design decisions shape user experiences across a spectrum of bodies.
 
-Currently, two official plugins are available:
+Developed as part of the [ETH Zurich Design++ Summer School 2025](https://designplusplus.ethz.eth/education/summer-school/summerschool2025.html) - exploring how to design space through other bodies and embodied perspectives.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- **Visual Impairment Simulation**: Experience spaces through cataracts, age-related macular degeneration, retinopathy, and monocular vision
+- **Vestibular Disorder Simulation**: Understand spatial perception challenges
+- **XR Integration**: Immersive virtual and augmented reality support
+- **Real-time Filtering**: Dynamic visual effects and accessibility overlays
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Prerequisites
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- [Bun](https://bun.sh/) runtime
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Start development server
+bun dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The application will be available at `https://localhost:5173`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+**Note**: HTTPS is required for XR functionality. Vite will guide you through the self-signed certificate setup process on first run. It's safe to accept the self-signed certificate in your browser since you generated it yourself.
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Technology Stack
+
+- [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vite.dev/)
+- [Three.js](https://threejs.org/) / [React Three Fiber](https://docs.pmndrs.dev/react-three-fiber/getting-started/introduction) for 3D rendering
+- [Rapier](https://rapier.rs/) for physics and collision detection
+- XR support for immersive experiences
+- Real-time shader-based visual filters

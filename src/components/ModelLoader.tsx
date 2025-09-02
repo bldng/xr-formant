@@ -13,6 +13,7 @@ import {
 } from "react";
 import * as THREE from "three";
 import { CharacterPlayer } from "./Stage/CharacterPlayer";
+import { processModelFile, cacheModel, getCachedModelUrl, isQuestOrAndroid } from "../utils/modelCache";
 
 // GLTF type definitions
 interface GLTFBuffer {
@@ -352,12 +353,20 @@ export function ModelDropZone() {
       if (gltfFile) {
         console.log("GLTF file found:", gltfFile.name);
 
-        // For GLB files (self-contained), we can use them directly
+        // For GLB files (self-contained), use the new caching system
         if (gltfFile.name.toLowerCase().endsWith(".glb")) {
-          const url = URL.createObjectURL(gltfFile);
-          console.log("Created GLB URL:", url);
-          setModel(url, gltfFile.name);
-          return;
+          try {
+            const { url, filename } = await processModelFile(gltfFile);
+            console.log("Processed GLB file:", { url, filename });
+            setModel(url, filename);
+            return;
+          } catch (error) {
+            console.error("Error processing GLB file:", error);
+            // Fallback to blob URL
+            const url = URL.createObjectURL(gltfFile);
+            setModel(url, gltfFile.name);
+            return;
+          }
         }
 
         // For GLTF files with external dependencies, we need to handle all files
@@ -372,7 +381,7 @@ export function ModelDropZone() {
           const gltfContent = await gltfFile.text();
           const gltfData: GLTFData = JSON.parse(gltfContent);
 
-          // Create blob URLs for all referenced files
+          // Create URLs for all referenced files (using appropriate method for platform)
           const modifiedGltfData = { ...gltfData };
 
           // Handle buffers (bin files)
@@ -382,8 +391,17 @@ export function ModelDropZone() {
                 if (buffer.uri && !buffer.uri.startsWith("data:")) {
                   const binFile = fileMap.get(buffer.uri);
                   if (binFile) {
-                    const blobUrl = URL.createObjectURL(binFile);
-                    return { ...buffer, uri: blobUrl };
+                    if (isQuestOrAndroid()) {
+                      // Cache bin file and use service worker URL
+                      const arrayBuffer = await binFile.arrayBuffer();
+                      await cacheModel(binFile.name, arrayBuffer, binFile.type);
+                      const cachedUrl = getCachedModelUrl(binFile.name);
+                      return { ...buffer, uri: cachedUrl };
+                    } else {
+                      // Use blob URL for desktop
+                      const blobUrl = URL.createObjectURL(binFile);
+                      return { ...buffer, uri: blobUrl };
+                    }
                   }
                 }
                 return buffer;
@@ -398,8 +416,17 @@ export function ModelDropZone() {
                 if (image.uri && !image.uri.startsWith("data:")) {
                   const imageFile = fileMap.get(image.uri);
                   if (imageFile) {
-                    const blobUrl = URL.createObjectURL(imageFile);
-                    return { ...image, uri: blobUrl };
+                    if (isQuestOrAndroid()) {
+                      // Cache image file and use service worker URL
+                      const arrayBuffer = await imageFile.arrayBuffer();
+                      await cacheModel(imageFile.name, arrayBuffer, imageFile.type);
+                      const cachedUrl = getCachedModelUrl(imageFile.name);
+                      return { ...image, uri: cachedUrl };
+                    } else {
+                      // Use blob URL for desktop
+                      const blobUrl = URL.createObjectURL(imageFile);
+                      return { ...image, uri: blobUrl };
+                    }
                   }
                 }
                 return image;
@@ -407,22 +434,39 @@ export function ModelDropZone() {
             );
           }
 
-          // Create a new blob with the modified GLTF content
+          // Create final GLTF file URL
           const modifiedGltfBlob = new Blob(
             [JSON.stringify(modifiedGltfData)],
             {
               type: "application/json",
             }
           );
-          const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
+
+          let gltfUrl: string;
+          if (isQuestOrAndroid()) {
+            // Cache the modified GLTF and use service worker URL
+            const arrayBuffer = await modifiedGltfBlob.arrayBuffer();
+            const cachedFilename = `modified_${gltfFile.name}`;
+            await cacheModel(cachedFilename, arrayBuffer, "application/json");
+            gltfUrl = getCachedModelUrl(cachedFilename);
+          } else {
+            // Use blob URL for desktop
+            gltfUrl = URL.createObjectURL(modifiedGltfBlob);
+          }
 
           console.log("Created modified GLTF URL:", gltfUrl);
           setModel(gltfUrl, gltfFile.name);
         } catch (error) {
           console.error("Error processing GLTF files:", error);
           // Fallback to simple URL creation
-          const url = URL.createObjectURL(gltfFile);
-          setModel(url, gltfFile.name);
+          try {
+            const { url, filename } = await processModelFile(gltfFile);
+            setModel(url, filename);
+          } catch (fallbackError) {
+            console.error("Fallback also failed:", fallbackError);
+            const url = URL.createObjectURL(gltfFile);
+            setModel(url, gltfFile.name);
+          }
         }
       } else {
         console.log(
@@ -525,20 +569,24 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       (file.name.toLowerCase().endsWith(".gltf") ||
         file.name.toLowerCase().endsWith(".glb"))
     ) {
-      // For GLB files (self-contained), we can use them directly
-      if (file.name.toLowerCase().endsWith(".glb")) {
+      try {
+        // Use the new caching system for both GLB and GLTF files
+        const { url, filename } = await processModelFile(file);
+        console.log("Processed file via input:", { url, filename });
+        setModel(url, filename);
+        
+        // Show warning for GLTF files that might have external dependencies
+        if (file.name.toLowerCase().endsWith(".gltf")) {
+          console.warn(
+            "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
+          );
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        // Fallback to blob URL
         const url = URL.createObjectURL(file);
         setModel(url, file.name);
-        return;
       }
-
-      // For GLTF files, we need to handle potential external dependencies
-      // Note: File input only gives us one file, so this is a fallback
-      console.warn(
-        "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
-      );
-      const url = URL.createObjectURL(file);
-      setModel(url, file.name);
     }
   };
 

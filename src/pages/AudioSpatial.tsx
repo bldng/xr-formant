@@ -176,6 +176,7 @@ function VRRoomAcoustics() {
   const voiceSourcesRef = useRef<ResonanceAudioSource[]>([]);
   const activeVoiceSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const voiceGainNodesRef = useRef<GainNode[]>([]);
+  const voiceTimeoutsRef = useRef<number[]>([]);
   const clickGainNodeRef = useRef<GainNode | null>(null);
   const [currentRoom, setCurrentRoom] = useState<RoomType>("office");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -186,11 +187,12 @@ function VRRoomAcoustics() {
   const timeRef = useRef(0);
 
   // Leva controls for audio parameters
-  const { voiceVolume, clickVolume } = useControls(
+  const { voiceVolume, clickVolume, moveSpeed } = useControls(
     "Audio Controls",
     {
       voiceVolume: { value: 0.1, min: 0, max: 0.5, step: 0.01 },
       clickVolume: { value: 0.1, min: 0, max: 0.5, step: 0.01 },
+      moveSpeed: { value: 0.2, min: 0.1, max: 2, step: 0.1 },
     },
     { collapsed: true }
   );
@@ -387,7 +389,7 @@ function VRRoomAcoustics() {
 
     if (resonanceAudioRef.current) {
       // Move audio source from left to right
-      const x = Math.sin(timeRef.current * 0.5) * 4; // Oscillate between -4 and +4
+      const x = Math.sin(timeRef.current * moveSpeed) * 4; // Oscillate between -4 and +4
       const y = 1;
       const z = -3;
 
@@ -463,6 +465,7 @@ function VRRoomAcoustics() {
     if (!voicesActive) {
       // Start looping audio samples
       activeVoiceSourcesRef.current = [];
+      voiceTimeoutsRef.current = [];
       voiceConfigs.forEach((config, index) => {
         if (voiceSourcesRef.current[index] && audioBuffersRef.current[index]) {
           voiceSourcesRef.current[index].setPosition(
@@ -472,16 +475,21 @@ function VRRoomAcoustics() {
           );
 
           // Stagger the sample start times slightly
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
             const bufferSource = playAudioSample(index);
             if (bufferSource) {
               activeVoiceSourcesRef.current.push(bufferSource);
             }
           }, index * 500);
+          voiceTimeoutsRef.current.push(timeoutId);
         }
       });
       setVoicesActive(true);
     } else {
+      // Clear pending timeouts
+      voiceTimeoutsRef.current.forEach(clearTimeout);
+      voiceTimeoutsRef.current = [];
+      
       // Stop all active voice sources
       activeVoiceSourcesRef.current.forEach((source) => {
         try {

@@ -40,3 +40,8 @@ The application will be available at `https://localhost:5173`. To access it from
 - [Rapier](https://rapier.rs/) for physics and collision detection
 - XR support for immersive experiences
 - Real-time shader-based visual filters
+
+## Model options
+
+`filename@2x.gltf` -> Increase scale
+`filename@0.5x.gltf` -> Decrease scale

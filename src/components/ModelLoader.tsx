@@ -35,13 +35,23 @@ interface GLTFData {
 interface GLTFModelProps {
   url: string;
   position?: [number, number, number];
+  filename?: string;
 }
 
-function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
+function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   console.log("GLTFModel component rendering with URL:", url);
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
   const { setModelLoading, teleportPlayer } = useModels();
+
+  // Extract scale from filename using @Nx pattern (e.g., @2x, @0.5x, @10x)
+  const getScaleFromFilename = (filename?: string): number => {
+    if (!filename) return 2; // Default scale
+    const scaleMatch = filename.match(/@(\d*\.?\d+)x/i);
+    return scaleMatch ? parseFloat(scaleMatch[1]) : 2; // Default scale if no match
+  };
+
+  const modelScale = getScaleFromFilename(filename);
 
   // Teleportation controls
   const { showTeleportTargets } = useControls("Teleportation", {
@@ -124,7 +134,7 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   return (
     <>
       <RigidBody type="fixed" position={position} colliders="trimesh">
-        <group ref={modelRef} castShadow receiveShadow scale={[2, 2, 2]}>
+        <group ref={modelRef} castShadow receiveShadow scale={[modelScale, modelScale, modelScale]}>
           <primitive object={clonedScene} />
         </group>
       </RigidBody>
@@ -136,8 +146,8 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
 } // Context for sharing model state between components
 
 interface ModelContextType {
-  model: { url: string; position: [number, number, number] } | null;
-  setModel: (url: string) => void;
+  model: { url: string; position: [number, number, number]; filename?: string } | null;
+  setModel: (url: string, filename?: string) => void;
   isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
   teleportPlayer?: (position: THREE.Vector3) => void;
@@ -161,18 +171,20 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [model, setModelState] = useState<{
     url: string;
     position: [number, number, number];
+    filename?: string;
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
   const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(
     null
   );
 
-  const setModel = useCallback((url: string) => {
-    console.log("Setting model with URL:", url);
+  const setModel = useCallback((url: string, filename?: string) => {
+    console.log("Setting model with URL:", url, "filename:", filename);
     setIsModelLoading(true);
     const newModel = {
       url,
       position: [0, 0, 0] as [number, number, number], // Spawn at origin on the floor
+      filename,
     };
     console.log("New model:", newModel);
     setModelState(newModel);
@@ -308,7 +320,7 @@ export function ModelDropZone() {
         if (gltfFile.name.toLowerCase().endsWith(".glb")) {
           const url = URL.createObjectURL(gltfFile);
           console.log("Created GLB URL:", url);
-          setModel(url);
+          setModel(url, gltfFile.name);
           return;
         }
 
@@ -369,12 +381,12 @@ export function ModelDropZone() {
           const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
 
           console.log("Created modified GLTF URL:", gltfUrl);
-          setModel(gltfUrl);
+          setModel(gltfUrl, gltfFile.name);
         } catch (error) {
           console.error("Error processing GLTF files:", error);
           // Fallback to simple URL creation
           const url = URL.createObjectURL(gltfFile);
-          setModel(url);
+          setModel(url, gltfFile.name);
         }
       } else {
         console.log(
@@ -427,6 +439,7 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
               key={model.url}
               url={model.url}
               position={model.position}
+              filename={model.filename}
             />
           )}
         </Suspense>
@@ -479,7 +492,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       // For GLB files (self-contained), we can use them directly
       if (file.name.toLowerCase().endsWith(".glb")) {
         const url = URL.createObjectURL(file);
-        setModel(url);
+        setModel(url, file.name);
         return;
       }
 
@@ -489,13 +502,13 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
         "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
       );
       const url = URL.createObjectURL(file);
-      setModel(url);
+      setModel(url, file.name);
     }
   };
 
   const handleLoadHafen = () => {
     // Load the hafen.gltf model from the public folder
-    setModel("/hafen.gltf");
+    setModel("/hafen.gltf", "hafen.gltf");
   };
 
   return (

@@ -220,8 +220,8 @@ function VRRoomAcoustics() {
   const voiceConfigs = [
     { label: "Voice 1", audioFile: "/audio/1.mp3", position: [-2, 1, 1] },
     { label: "Voice 2", audioFile: "/audio/2.mp3", position: [3, 1, -2] },
-    { label: "Footsteps", audioFile: "/audio/3.mp3", position: [1, 1, 3] },
-    { label: "Conversation", audioFile: "/audio/4.mp3", position: [-3, 1, -1] },
+    { label: "Voice 3", audioFile: "/audio/3.mp3", position: [1, 1, 3] },
+    { label: "Voice 4", audioFile: "/audio/4.mp3", position: [-3, 1, -1] },
   ];
 
   const audioBuffersRef = useRef<AudioBuffer[]>([]);
@@ -598,7 +598,14 @@ function VRRoomAcoustics() {
 
       {/* Room type buttons */}
       {Object.entries(roomConfigs).map(([type, config], i) => (
-        <group key={type} position={[i * 2 - 3, 0.5, -1]}>
+        <group
+          key={type}
+          position={[
+            i * 0.5 - (Object.keys(roomConfigs).length - 1) * 0.25,
+            0.5,
+            -1,
+          ]}
+        >
           <Box
             args={[0.4, 0.3, 0.1]}
             onClick={() => switchRoom(type as RoomType)}
@@ -611,7 +618,7 @@ function VRRoomAcoustics() {
           </Box>
           <Text
             position={[0, -0.3, 0]}
-            fontSize={0.08}
+            fontSize={0.03}
             color="white"
             anchorX="center"
             maxWidth={0.8}

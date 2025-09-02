@@ -105,11 +105,22 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
     center
   );
 
-  // Enable shadows on all meshes in the model
+  // Enable shadows and configure materials on all meshes in the model
   clonedScene.traverse((child) => {
     if (child instanceof THREE.Mesh) {
       child.castShadow = true;
       child.receiveShadow = true;
+      
+      // Make materials double-sided to fix inside-out faces and transparency issues
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(mat => {
+            mat.side = THREE.DoubleSide;
+          });
+        } else {
+          child.material.side = THREE.DoubleSide;
+        }
+      }
     }
   });
 

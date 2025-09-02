@@ -26,7 +26,8 @@ type Controls =
   | "shrink"
   | "rotateLeft"
   | "rotateRight"
-  | "jump";
+  | "jump"
+  | "squeeze";
 
 export function CharacterPlayer() {
   const playerRef = useRef<RapierRigidBody>(null);
@@ -260,6 +261,7 @@ export function CharacterPlayer() {
       rotateLeft,
       rotateRight,
       jump,
+      squeeze,
     } = get();
 
     // Get XR controller input with velocity-sensitive movement
@@ -500,26 +502,58 @@ export function CharacterPlayer() {
 
     const collider = world.getCollider(playerRef.current.handle);
     if (collider) {
-      characterControllerRef.current.computeColliderMovement(
-        collider,
-        desiredMovement
-      );
-      const computedMovement =
-        characterControllerRef.current.computedMovement();
-      const isGrounded = characterControllerRef.current.computedGrounded();
+      // Squeeze mode: bypass collision checking for forward movement only
+      if (squeeze && !session && forward) {
+        // First do normal collision detection to check ground
+        characterControllerRef.current.computeColliderMovement(
+          collider,
+          desiredMovement
+        );
+        const computedMovement = characterControllerRef.current.computedMovement();
+        const isGrounded = characterControllerRef.current.computedGrounded();
 
-      if (isGrounded && velocityRef.current.y <= 0) {
-        velocityRef.current.y = 0;
-        isJumpingRef.current = false;
+        // Update grounded state and reset jump if needed
+        if (isGrounded && velocityRef.current.y <= 0) {
+          velocityRef.current.y = 0;
+          isJumpingRef.current = false;
+        }
+
+        // Apply squeeze movement: use computed Y movement but force forward X/Z movement
+        const currentPos = playerRef.current.translation();
+        playerRef.current.setTranslation(
+          {
+            x: currentPos.x + desiredMovement.x, // Force forward movement through walls
+            y: currentPos.y + computedMovement.y, // Use physics-computed Y for ground collision
+            z: currentPos.z + desiredMovement.z, // Force forward movement through walls
+          },
+          true
+        );
+        
+        // Apply only Y velocity for gravity/jumping
+        playerRef.current.setLinvel({ x: 0, y: computedMovement.y / delta, z: 0 }, true);
+      } else {
+        // Normal physics-respecting movement
+        characterControllerRef.current.computeColliderMovement(
+          collider,
+          desiredMovement
+        );
+        const computedMovement =
+          characterControllerRef.current.computedMovement();
+        const isGrounded = characterControllerRef.current.computedGrounded();
+
+        if (isGrounded && velocityRef.current.y <= 0) {
+          velocityRef.current.y = 0;
+          isJumpingRef.current = false;
+        }
+
+        const velocity = {
+          x: computedMovement.x / delta,
+          y: computedMovement.y / delta,
+          z: computedMovement.z / delta,
+        };
+
+        playerRef.current.setLinvel(velocity, true);
       }
-
-      const velocity = {
-        x: computedMovement.x / delta,
-        y: computedMovement.y / delta,
-        z: computedMovement.z / delta,
-      };
-
-      playerRef.current.setLinvel(velocity, true);
     }
   });
 

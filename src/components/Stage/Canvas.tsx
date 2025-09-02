@@ -20,6 +20,7 @@ type Controls = {
   rotateLeft: "rotateLeft";
   rotateRight: "rotateRight";
   jump: "jump";
+  squeeze: "squeeze";
 };
 
 const Controls = {
@@ -32,6 +33,7 @@ const Controls = {
   rotateLeft: "rotateLeft",
   rotateRight: "rotateRight",
   jump: "jump",
+  squeeze: "squeeze",
 } as const;
 
 const keyboardMap = [
@@ -44,6 +46,7 @@ const keyboardMap = [
   { name: Controls.rotateLeft, keys: ["KeyQ", "ArrowLeft"] },
   { name: Controls.rotateRight, keys: ["KeyE", "ArrowRight"] },
   { name: Controls.jump, keys: ["Space"] },
+  { name: Controls.squeeze, keys: ["ShiftLeft", "ShiftRight"] },
 ];
 
 export const Canvas = () => (

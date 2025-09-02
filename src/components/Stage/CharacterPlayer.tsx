@@ -37,7 +37,7 @@ export function CharacterPlayer() {
   const [showDebug] = useState(true);
   const [debugText, setDebugText] = useState("");
   const [position, setPosition] = useState(new THREE.Vector3(-20, 2, 0));
-  const { registerTeleportHandler } = useModels();
+  const { registerTeleportHandler, modelBounds } = useModels();
 
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
@@ -153,6 +153,31 @@ export function CharacterPlayer() {
       isJumpingRef.current = false;
     }
   }, []);
+
+  // Update player position when model bounds change
+  useEffect(() => {
+    if (modelBounds && playerRef.current) {
+      // Position player above the model with some clearance
+      const playerHeight = 1.5; // Player capsule center height
+      const clearance = 2; // Extra space above model
+      const newY = modelBounds.topY + clearance + playerHeight;
+      
+      const newPosition = new THREE.Vector3(0, newY, 0); // Spawn at model center
+      setPosition(newPosition);
+      
+      // Apply to physics body
+      playerRef.current.setTranslation(
+        {
+          x: newPosition.x,
+          y: newPosition.y,
+          z: newPosition.z,
+        },
+        true
+      );
+      
+      console.log("Player positioned above model at Y:", newY);
+    }
+  }, [modelBounds]);
 
   // Use XRControllerLocomotion to control the character RigidBody directly
   useXRControllerLocomotion(

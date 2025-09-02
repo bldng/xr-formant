@@ -42,7 +42,7 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   console.log("GLTFModel component rendering with URL:", url);
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
-  const { setModelLoading, teleportPlayer } = useModels();
+  const { setModelLoading, teleportPlayer, setModelBounds } = useModels();
 
   // Extract scale from filename using @Nx pattern (e.g., @2x, @0.5x, @10x)
   const getScaleFromFilename = (filename?: string): number => {
@@ -82,9 +82,25 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   clonedScene.position.copy(center).multiplyScalar(-1);
   clonedScene.position.y = size.y / 2 - center.y; // Move bottom to y=0
 
+  // Calculate model bounds considering the applied scale and position
+  const scaledHeight = size.y * modelScale;
+  const modelTopY = position[1] + scaledHeight;
+  
+  // Update model bounds in context
+  useEffect(() => {
+    setModelBounds({
+      height: scaledHeight,
+      topY: modelTopY,
+    });
+  }, [scaledHeight, modelTopY, setModelBounds]);
+
   console.log(
     "Model positioned on ground, size:",
     size,
+    "scaled height:",
+    scaledHeight,
+    "top Y:",
+    modelTopY,
     "center offset:",
     center
   );
@@ -154,6 +170,8 @@ interface ModelContextType {
   registerTeleportHandler?: (
     handler: (position: THREE.Vector3) => void
   ) => void;
+  modelBounds?: { height: number; topY: number };
+  setModelBounds: (bounds: { height: number; topY: number }) => void;
 }
 
 const ModelContext = createContext<ModelContextType | null>(null);
@@ -174,6 +192,7 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     filename?: string;
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const [modelBounds, setModelBoundsState] = useState<{ height: number; topY: number }>();
   const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(
     null
   );
@@ -207,6 +226,10 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const setModelBounds = useCallback((bounds: { height: number; topY: number }) => {
+    setModelBoundsState(bounds);
+  }, []);
+
   return (
     <ModelContext.Provider
       value={{
@@ -216,6 +239,8 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         setModelLoading,
         teleportPlayer,
         registerTeleportHandler,
+        modelBounds,
+        setModelBounds,
       }}
     >
       {children}

@@ -5,7 +5,7 @@ self.addEventListener('fetch', (event) => {
   
   // Intercept requests to /cached-model/*
   if (url.pathname.startsWith('/cached-model/')) {
-    const filename = url.pathname.replace('/cached-model/', '');
+    const filename = decodeURIComponent(url.pathname.replace('/cached-model/', ''));
     
     event.respondWith(
       handleCachedModelRequest(filename)
@@ -23,7 +23,7 @@ async function handleCachedModelRequest(filename) {
     });
     
     // Get the model data
-    const arrayBuffer = await new Promise((resolve, reject) => {
+    const cachedModel = await new Promise((resolve, reject) => {
       const transaction = db.transaction(['models'], 'readonly');
       const store = transaction.objectStore('models');
       const request = store.get(filename);
@@ -39,10 +39,10 @@ async function handleCachedModelRequest(filename) {
     });
     
     // Return the model as a response
-    return new Response(arrayBuffer, {
+    return new Response(cachedModel.data, {
       headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': arrayBuffer.byteLength.toString(),
+        'Content-Type': cachedModel.mimeType || 'application/octet-stream',
+        'Content-Length': cachedModel.data.byteLength.toString(),
         'Access-Control-Allow-Origin': '*'
       }
     });

@@ -3,6 +3,7 @@ import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { TeleportTarget } from "@react-three/xr";
 import { useControls } from "leva";
 import {
+  Component,
   createContext,
   Suspense,
   useCallback,
@@ -10,6 +11,8 @@ import {
   useEffect,
   useRef,
   useState,
+  type ErrorInfo,
+  type ReactNode,
 } from "react";
 import * as THREE from "three";
 import {
@@ -181,7 +184,46 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
       {showTeleportTargets && teleportPlanes}
     </>
   );
-} // Context for sharing model state between components
+}
+
+// Error Boundary to catch GLTF loading errors and show debug info
+class ModelErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('GLTF Model loading error:', error, errorInfo);
+    
+    // Send debug info for Quest users
+    if (isQuestOrAndroid()) {
+      const debugMsg = `GLTF Error: ${error.message}`;
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('questDebugUpdate', { detail: debugMsg }));
+        }
+      }, 100);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null; // Don't render anything, let the app continue
+    }
+
+    return this.props.children;
+  }
+}
+
+// Context for sharing model state between components
 
 interface ModelContextType {
   model: {
@@ -539,12 +581,14 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
       <Physics paused={isModelLoading}>
         <Suspense fallback={null}>
           {model && (
-            <GLTFModel
-              key={model.url}
-              url={model.url}
-              position={model.position}
-              filename={model.filename}
-            />
+            <ModelErrorBoundary>
+              <GLTFModel
+                key={model.url}
+                url={model.url}
+                position={model.position}
+                filename={model.filename}
+              />
+            </ModelErrorBoundary>
           )}
         </Suspense>
 

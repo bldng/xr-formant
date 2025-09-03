@@ -15,12 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import * as THREE from "three";
-import {
-  cacheModel,
-  getCachedModelUrl,
-  isQuestOrAndroid,
-  processModelFile,
-} from "../utils/modelCache";
+import { processModelFile } from "../utils/modelCache";
 import { CharacterPlayer } from "./Stage/CharacterPlayer";
 
 // GLTF type definitions
@@ -202,18 +197,6 @@ class ModelErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("GLTF Model loading error:", error, errorInfo);
-
-    // Send debug info for Quest users
-    if (isQuestOrAndroid()) {
-      const debugMsg = `GLTF Error: ${error.message}`;
-      setTimeout(() => {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("questDebugUpdate", { detail: debugMsg })
-          );
-        }
-      }, 100);
-    }
   }
 
   render() {
@@ -455,17 +438,9 @@ export function ModelDropZone() {
                 if (buffer.uri && !buffer.uri.startsWith("data:")) {
                   const binFile = fileMap.get(buffer.uri);
                   if (binFile) {
-                    if (isQuestOrAndroid()) {
-                      // Cache bin file and use service worker URL
-                      const arrayBuffer = await binFile.arrayBuffer();
-                      await cacheModel(binFile.name, arrayBuffer, binFile.type);
-                      const cachedUrl = getCachedModelUrl(binFile.name);
-                      return { ...buffer, uri: cachedUrl };
-                    } else {
-                      // Use blob URL for desktop
-                      const blobUrl = URL.createObjectURL(binFile);
-                      return { ...buffer, uri: blobUrl };
-                    }
+                    // Use blob URL for all platforms
+                    const blobUrl = URL.createObjectURL(binFile);
+                    return { ...buffer, uri: blobUrl };
                   }
                 }
                 return buffer;
@@ -480,21 +455,9 @@ export function ModelDropZone() {
                 if (image.uri && !image.uri.startsWith("data:")) {
                   const imageFile = fileMap.get(image.uri);
                   if (imageFile) {
-                    if (isQuestOrAndroid()) {
-                      // Cache image file and use service worker URL
-                      const arrayBuffer = await imageFile.arrayBuffer();
-                      await cacheModel(
-                        imageFile.name,
-                        arrayBuffer,
-                        imageFile.type
-                      );
-                      const cachedUrl = getCachedModelUrl(imageFile.name);
-                      return { ...image, uri: cachedUrl };
-                    } else {
-                      // Use blob URL for desktop
-                      const blobUrl = URL.createObjectURL(imageFile);
-                      return { ...image, uri: blobUrl };
-                    }
+                    // Use blob URL for all platforms
+                    const blobUrl = URL.createObjectURL(imageFile);
+                    return { ...image, uri: blobUrl };
                   }
                 }
                 return image;
@@ -510,17 +473,8 @@ export function ModelDropZone() {
             }
           );
 
-          let gltfUrl: string;
-          if (isQuestOrAndroid()) {
-            // Cache the modified GLTF and use service worker URL
-            const arrayBuffer = await modifiedGltfBlob.arrayBuffer();
-            const cachedFilename = `modified_${gltfFile.name}`;
-            await cacheModel(cachedFilename, arrayBuffer, "application/json");
-            gltfUrl = getCachedModelUrl(cachedFilename);
-          } else {
-            // Use blob URL for desktop
-            gltfUrl = URL.createObjectURL(modifiedGltfBlob);
-          }
+          // Use blob URL for all platforms
+          const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
 
           console.log("Created modified GLTF URL:", gltfUrl);
           setModel(gltfUrl, gltfFile.name);
@@ -628,25 +582,6 @@ interface ModelControlsProps {
 export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setModel, model, isModelLoading } = useModels();
-  const [questDebugInfo, setQuestDebugInfo] = useState("");
-
-  // Listen for Quest debug updates
-  useEffect(() => {
-    const handleQuestDebug = (event: CustomEvent) => {
-      setQuestDebugInfo(event.detail);
-    };
-
-    window.addEventListener(
-      "questDebugUpdate",
-      handleQuestDebug as EventListener
-    );
-    return () => {
-      window.removeEventListener(
-        "questDebugUpdate",
-        handleQuestDebug as EventListener
-      );
-    };
-  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -691,7 +626,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
           onClick={() => fileInputRef.current?.click()}
           className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
-          Load Model (opfs)
+          Load Model
         </button>
         <button
           onClick={handleLoadHafen}
@@ -709,9 +644,6 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
         Model: {model ? <span className="font-bold">{model.url}</span> : "none"}
         {isModelLoading && <div className="text-yellow-400">Loading...</div>}
-        {questDebugInfo && (
-          <div className="mt-1 text-green-400">{questDebugInfo}</div>
-        )}
       </div>
       <input
         ref={fileInputRef}

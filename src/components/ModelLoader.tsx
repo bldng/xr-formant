@@ -582,6 +582,17 @@ interface ModelControlsProps {
 export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setModel, model, isModelLoading } = useModels();
+  const [availableModels, setAvailableModels] = useState<
+    Array<{ name: string; filename: string }>
+  >([]);
+
+  // Load available models from models.json
+  useEffect(() => {
+    fetch("/models/models.json")
+      .then((res) => res.json())
+      .then((models) => setAvailableModels(models))
+      .catch(() => setAvailableModels([]));
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -614,32 +625,52 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
     }
   };
 
-  const handleLoadHafen = () => {
-    // Load the hafen.gltf model from the public folder
-    setModel("/hafen.gltf", "hafen.gltf");
-  };
-
   return (
     <div className="absolute z-20 top-4 left-4">
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
-        >
-          Load Model (Desktop Only)
-        </button>
-        <button
-          onClick={handleLoadHafen}
-          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
-        >
-          Load Example
-        </button>
-        <button
-          onClick={onEnterVR}
-          className="px-4 py-1.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-        >
-          Enter VR
-        </button>
+      <div className="flex flex-col gap-2 mb-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
+          >
+            Load Model
+          </button>
+          <button
+            onClick={onEnterVR}
+            className="px-4 py-1.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+          >
+            Enter VR
+          </button>
+        </div>
+        {availableModels.length > 0 && (
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                const modelFile = availableModels.find(
+                  (m) => m.filename === e.target.value
+                );
+                if (modelFile) {
+                  setModel(`/models/${modelFile.filename}`, modelFile.filename);
+                }
+              }
+            }}
+            className="px-4 py-1.5 text-white bg-slate-500 rounded-lg shadow-lg hover:bg-slate-600 focus:bg-slate-600 focus:outline-none"
+            defaultValue=""
+          >
+            <option value="" className="text-gray-400">
+              Select a model...
+            </option>
+            {availableModels.map((modelItem) => (
+              <option
+                key={modelItem.filename}
+                value={modelItem.filename}
+                className="text-white bg-slate-600"
+              >
+                {modelItem.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
         Model: {model ? <span className="font-bold">{model.url}</span> : "none"}

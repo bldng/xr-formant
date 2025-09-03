@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run generate-models && tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate-models": "node scripts/generate-models-json.js"
   },
   "dependencies": {
     "@react-three/drei": "^10.6.1",

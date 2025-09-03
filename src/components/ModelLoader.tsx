@@ -672,8 +672,20 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
           </select>
         )}
       </div>
-      <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
-        Model: {model ? <span className="font-bold">{model.url}</span> : "none"}
+      <div className="w-64 px-2 py-1 text-sm text-white rounded bg-black/50">
+        <div className="flex items-center gap-1">
+          <span className="flex-shrink-0">Model:</span>
+          {model ? (
+            <span
+              className="font-bold truncate max-w-[200px]"
+              title={model.filename || model.url}
+            >
+              {model.filename || model.url.split("/").pop() || model.url}
+            </span>
+          ) : (
+            "none"
+          )}
+        </div>
         {isModelLoading && <div className="text-yellow-400">Loading...</div>}
       </div>
       <input

@@ -201,14 +201,16 @@ class ModelErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('GLTF Model loading error:', error, errorInfo);
-    
+    console.error("GLTF Model loading error:", error, errorInfo);
+
     // Send debug info for Quest users
     if (isQuestOrAndroid()) {
       const debugMsg = `GLTF Error: ${error.message}`;
       setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('questDebugUpdate', { detail: debugMsg }));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("questDebugUpdate", { detail: debugMsg })
+          );
         }
       }, 100);
     }
@@ -627,7 +629,6 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setModel, model, isModelLoading } = useModels();
   const [questDebugInfo, setQuestDebugInfo] = useState("");
-  const [urlInput, setUrlInput] = useState("");
 
   // Listen for Quest debug updates
   useEffect(() => {
@@ -683,13 +684,6 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
     setModel("/hafen.gltf", "hafen.gltf");
   };
 
-  const handleLoadFromUrl = () => {
-    if (urlInput.trim()) {
-      const filename = urlInput.split('/').pop() || 'model.glb';
-      setModel(urlInput.trim(), filename);
-      setUrlInput("");
-    }
-  };
 
   return (
     <div className="absolute z-20 top-4 left-4">

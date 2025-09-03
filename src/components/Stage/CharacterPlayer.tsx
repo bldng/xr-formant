@@ -42,7 +42,7 @@ export function CharacterPlayer() {
 
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
-    useControls("Character Movement", {
+    useControls("Persona Movement", {
       staminaEnabled: false,
       maxWalkingSpeed: { value: 5, min: 1, max: 15, step: 0.5 },
       maxStamina: { value: 100, min: 50, max: 200, step: 10 },
@@ -162,10 +162,10 @@ export function CharacterPlayer() {
       const playerHeight = 1.5; // Player capsule center height
       const clearance = 2; // Extra space above model
       const newY = modelBounds.topY + clearance + playerHeight;
-      
+
       const newPosition = new THREE.Vector3(0, newY, 0); // Spawn at model center
       setPosition(newPosition);
-      
+
       // Apply to physics body
       playerRef.current.setTranslation(
         {
@@ -175,7 +175,7 @@ export function CharacterPlayer() {
         },
         true
       );
-      
+
       console.log("Player positioned above model at Y:", newY);
     }
   }, [modelBounds]);
@@ -509,7 +509,8 @@ export function CharacterPlayer() {
           collider,
           desiredMovement
         );
-        const computedMovement = characterControllerRef.current.computedMovement();
+        const computedMovement =
+          characterControllerRef.current.computedMovement();
         const isGrounded = characterControllerRef.current.computedGrounded();
 
         // Update grounded state and reset jump if needed
@@ -528,9 +529,12 @@ export function CharacterPlayer() {
           },
           true
         );
-        
+
         // Apply only Y velocity for gravity/jumping
-        playerRef.current.setLinvel({ x: 0, y: computedMovement.y / delta, z: 0 }, true);
+        playerRef.current.setLinvel(
+          { x: 0, y: computedMovement.y / delta, z: 0 },
+          true
+        );
       } else {
         // Normal physics-respecting movement
         characterControllerRef.current.computeColliderMovement(

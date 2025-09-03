@@ -163,56 +163,46 @@ export const processModelFile = async (
   const filename = file.name;
 
   if (isQuestOrAndroid()) {
-    setQuestDebugInfo(`Quest: Trying Origin Private File System...`);
+    setQuestDebugInfo(`Quest: Trying OPFS...`);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-
-      // Try Origin Private File System API (newer approach)
-      if ('navigator' in globalThis && 'storage' in navigator && 'getDirectory' in navigator.storage) {
-        setQuestDebugInfo(`Quest: OPFS available, storing file...`);
-        
-        const opfsRoot = await navigator.storage.getDirectory();
-        const fileHandle = await opfsRoot.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(arrayBuffer);
-        await writable.close();
-        
-        // Create URL from OPFS file handle
-        const opfsFile = await fileHandle.getFile();
-        const url = URL.createObjectURL(opfsFile);
-        
-        setQuestDebugInfo(`Quest: OPFS URL created`);
-        return { url, filename };
-        
-      } else {
-        setQuestDebugInfo(`Quest: OPFS not available, trying stream approach...`);
-        
-        // Try creating a ReadableStream approach
-        const stream = new ReadableStream({
-          start(controller) {
-            controller.enqueue(new Uint8Array(arrayBuffer));
-            controller.close();
-          }
-        });
-        
-        const response = new Response(stream, {
-          headers: { 
-            'Content-Type': file.type || 'application/octet-stream',
-            'Content-Length': arrayBuffer.byteLength.toString()
-          }
-        });
-        
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        
-        setQuestDebugInfo(`Quest: Stream URL created`);
-        return { url, filename };
+      // Check if OPFS is available
+      if (!('storage' in navigator) || !('getDirectory' in navigator.storage)) {
+        throw new Error('OPFS not supported');
       }
+
+      const arrayBuffer = await file.arrayBuffer();
+      setQuestDebugInfo(`Quest: Got file data (${arrayBuffer.byteLength} bytes)`);
+
+      // Store in OPFS
+      const opfsRoot = await navigator.storage.getDirectory();
+      const fileHandle = await opfsRoot.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(arrayBuffer);
+      await writable.close();
+      
+      setQuestDebugInfo(`Quest: Stored in OPFS`);
+
+      // Get file from OPFS (this returns a real File object, not blob)
+      const opfsFile = await fileHandle.getFile();
+      
+      // Try to use the file directly without createObjectURL
+      setQuestDebugInfo(`Quest: OPFS file ready, size: ${opfsFile.size}`);
+      
+      // Return the file's stream as a data URL
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(opfsFile);
+      });
+      
+      setQuestDebugInfo(`Quest: Data URL from OPFS created`);
+      return { url: dataUrl, filename };
       
     } catch (error) {
-      setQuestDebugInfo(`Quest: All methods failed - ${error instanceof Error ? error.message : 'Unknown'}`);
-      throw new Error('Quest 2 browser blocks local file loading. Use the "Load Example" button or load from URL.');
+      setQuestDebugInfo(`Quest: OPFS failed - ${error instanceof Error ? error.message : 'Unknown'}`);
+      throw error;
     }
   } else {
     // Use traditional blob URL for desktop

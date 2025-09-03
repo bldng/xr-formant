@@ -189,15 +189,12 @@ export const processModelFile = async (
       // Try to use the file directly without createObjectURL
       setQuestDebugInfo(`Quest: OPFS file ready, size: ${opfsFile.size}`);
       
-      // Return the file's stream as a data URL
-      const reader = new FileReader();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(opfsFile);
-      });
+      // Convert to data URL manually without FileReader (which uses blobs internally)
+      const opfsArrayBuffer = await opfsFile.arrayBuffer();
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(opfsArrayBuffer)));
+      const dataUrl = `data:${file.type || 'application/octet-stream'};base64,${base64}`;
       
-      setQuestDebugInfo(`Quest: Data URL from OPFS created`);
+      setQuestDebugInfo(`Quest: Manual data URL created (${Math.round(dataUrl.length/1024)}KB)`);
       return { url: dataUrl, filename };
       
     } catch (error) {

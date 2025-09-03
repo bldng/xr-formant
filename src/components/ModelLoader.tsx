@@ -684,7 +684,6 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
     setModel("/hafen.gltf", "hafen.gltf");
   };
 
-
   return (
     <div className="absolute z-20 top-4 left-4">
       <div className="flex gap-2 mb-2">
@@ -692,7 +691,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
           onClick={() => fileInputRef.current?.click()}
           className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
-          Load Model
+          Load Model (opfs)
         </button>
         <button
           onClick={handleLoadHafen}

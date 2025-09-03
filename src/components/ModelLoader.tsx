@@ -627,6 +627,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { setModel, model, isModelLoading } = useModels();
   const [questDebugInfo, setQuestDebugInfo] = useState("");
+  const [urlInput, setUrlInput] = useState("");
 
   // Listen for Quest debug updates
   useEffect(() => {
@@ -680,6 +681,14 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const handleLoadHafen = () => {
     // Load the hafen.gltf model from the public folder
     setModel("/hafen.gltf", "hafen.gltf");
+  };
+
+  const handleLoadFromUrl = () => {
+    if (urlInput.trim()) {
+      const filename = urlInput.split('/').pop() || 'model.glb';
+      setModel(urlInput.trim(), filename);
+      setUrlInput("");
+    }
   };
 
   return (

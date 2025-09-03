@@ -166,47 +166,21 @@ export const processModelFile = async (
     setQuestDebugInfo(`Quest: Processing ${filename}`);
 
     try {
-      // Store file in IndexedDB
       const arrayBuffer = await file.arrayBuffer();
-      await cacheModel(filename, arrayBuffer, file.type);
-      setQuestDebugInfo(
-        `Quest: Cached ${filename} (${arrayBuffer.byteLength} bytes)`
-      );
-
-      const serviceWorkerUrl = getCachedModelUrl(filename);
-
-      // Test if service worker can serve the file
-      try {
-        const testResponse = await fetch(serviceWorkerUrl);
-        if (testResponse.ok) {
-          setQuestDebugInfo(`Quest: Service worker OK for ${filename}`);
-          return { url: serviceWorkerUrl, filename };
-        } else {
-          setQuestDebugInfo(
-            `Quest: SW failed (${testResponse.status}), using data URL`
-          );
-        }
-      } catch {
-        setQuestDebugInfo(`Quest: SW error, using data URL for ${filename}`);
-      }
-
-      // Fallback to data URL if service worker fails
+      
+      // Skip service worker entirely for Quest - go straight to data URL
+      setQuestDebugInfo(`Quest: Converting to data URL...`);
+      
+      // Convert to data URL (works reliably on Quest)
       const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-      const dataUrl = `data:${
-        file.type || "application/octet-stream"
-      };base64,${base64}`;
-      setQuestDebugInfo(
-        `Quest: Data URL created (${Math.round(dataUrl.length / 1024)}KB)`
-      );
-
+      const dataUrl = `data:${file.type || "model/gltf-binary"};base64,${base64}`;
+      
+      setQuestDebugInfo(`Quest: Data URL ready (${Math.round(dataUrl.length / 1024)}KB)`);
       return { url: dataUrl, filename };
-    } catch {
-      setQuestDebugInfo(`Quest: Error - using blob URL fallback`);
-      // Final fallback to blob URL
-      return {
-        url: URL.createObjectURL(file),
-        filename,
-      };
+      
+    } catch (error) {
+      setQuestDebugInfo(`Quest: Failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error; // Let the error boundary handle it
     }
   } else {
     // Use traditional blob URL for desktop

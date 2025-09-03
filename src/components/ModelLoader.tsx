@@ -626,7 +626,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
           onClick={() => fileInputRef.current?.click()}
           className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
         >
-          Load Model
+          Load Model (Desktop Only)
         </button>
         <button
           onClick={handleLoadHafen}

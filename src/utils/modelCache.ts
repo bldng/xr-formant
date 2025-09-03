@@ -1,9 +1,9 @@
 // IndexedDB utilities for caching models on Quest and other platforms
 // where blob URLs may not work reliably
 
-const DB_NAME = 'GLBModelCache';
+const DB_NAME = "GLBModelCache";
 const DB_VERSION = 1;
-const STORE_NAME = 'models';
+const STORE_NAME = "models";
 
 export interface CachedModel {
   filename: string;
@@ -15,44 +15,50 @@ export interface CachedModel {
 // Check if we're running on Quest/Android WebVR where blob URLs might fail
 export const isQuestOrAndroid = (): boolean => {
   const userAgent = navigator.userAgent.toLowerCase();
-  return userAgent.includes('quest') || 
-         userAgent.includes('android') || 
-         userAgent.includes('oculus');
+  return (
+    userAgent.includes("quest") ||
+    userAgent.includes("android") ||
+    userAgent.includes("oculus")
+  );
 };
 
 // Open IndexedDB connection
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
-    
+
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'filename' });
-        store.createIndex('timestamp', 'timestamp', { unique: false });
+        const store = db.createObjectStore(STORE_NAME, { keyPath: "filename" });
+        store.createIndex("timestamp", "timestamp", { unique: false });
       }
     };
   });
 };
 
 // Store a model in IndexedDB
-export const cacheModel = async (filename: string, data: ArrayBuffer, mimeType: string = 'application/octet-stream'): Promise<void> => {
+export const cacheModel = async (
+  filename: string,
+  data: ArrayBuffer,
+  mimeType: string = "application/octet-stream"
+): Promise<void> => {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const transaction = db.transaction([STORE_NAME], "readwrite");
     const store = transaction.objectStore(STORE_NAME);
-    
+
     const cachedModel: CachedModel = {
       filename,
       data,
       timestamp: Date.now(),
-      mimeType
+      mimeType,
     };
-    
+
     const request = store.put(cachedModel);
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
@@ -60,14 +66,16 @@ export const cacheModel = async (filename: string, data: ArrayBuffer, mimeType: 
 };
 
 // Retrieve a model from IndexedDB
-export const getCachedModel = async (filename: string): Promise<ArrayBuffer | null> => {
+export const getCachedModel = async (
+  filename: string
+): Promise<ArrayBuffer | null> => {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
+    const transaction = db.transaction([STORE_NAME], "readonly");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.get(filename);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       if (request.result) {
@@ -85,7 +93,7 @@ export const isModelCached = async (filename: string): Promise<boolean> => {
     const data = await getCachedModel(filename);
     return data !== null;
   } catch (error) {
-    console.error('Error checking model cache:', error);
+    console.error("Error checking model cache:", error);
     return false;
   }
 };
@@ -93,12 +101,12 @@ export const isModelCached = async (filename: string): Promise<boolean> => {
 // Delete a model from cache
 export const deleteCachedModel = async (filename: string): Promise<void> => {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const transaction = db.transaction([STORE_NAME], "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(filename);
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
@@ -107,12 +115,12 @@ export const deleteCachedModel = async (filename: string): Promise<void> => {
 // List all cached models
 export const listCachedModels = async (): Promise<string[]> => {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readonly');
+    const transaction = db.transaction([STORE_NAME], "readonly");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAllKeys();
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result as string[]);
   });
@@ -121,12 +129,12 @@ export const listCachedModels = async (): Promise<string[]> => {
 // Clear all cached models
 export const clearCache = async (): Promise<void> => {
   const db = await openDB();
-  
+
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const transaction = db.transaction([STORE_NAME], "readwrite");
     const store = transaction.objectStore(STORE_NAME);
     const request = store.clear();
-    
+
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve();
   });
@@ -137,29 +145,74 @@ export const getCachedModelUrl = (filename: string): string => {
   return `/cached-model/${encodeURIComponent(filename)}`;
 };
 
+// Global debug state for visual feedback on Quest
+let questDebugInfo = "";
+export const getQuestDebugInfo = () => questDebugInfo;
+export const setQuestDebugInfo = (info: string) => {
+  questDebugInfo = info;
+  // Dispatch custom event to update UI
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("questDebugUpdate", { detail: info }));
+  }
+};
+
 // Process file and return appropriate URL based on platform
-export const processModelFile = async (file: File): Promise<{ url: string; filename: string }> => {
+export const processModelFile = async (
+  file: File
+): Promise<{ url: string; filename: string }> => {
   const filename = file.name;
-  
+
   if (isQuestOrAndroid()) {
-    console.log('Quest/Android detected, using IndexedDB cache for', filename);
-    
-    // Store file in IndexedDB
-    const arrayBuffer = await file.arrayBuffer();
-    await cacheModel(filename, arrayBuffer, file.type);
-    
-    // Return service worker URL
-    return {
-      url: getCachedModelUrl(filename),
-      filename
-    };
+    setQuestDebugInfo(`Quest: Processing ${filename}`);
+
+    try {
+      // Store file in IndexedDB
+      const arrayBuffer = await file.arrayBuffer();
+      await cacheModel(filename, arrayBuffer, file.type);
+      setQuestDebugInfo(
+        `Quest: Cached ${filename} (${arrayBuffer.byteLength} bytes)`
+      );
+
+      const serviceWorkerUrl = getCachedModelUrl(filename);
+
+      // Test if service worker can serve the file
+      try {
+        const testResponse = await fetch(serviceWorkerUrl);
+        if (testResponse.ok) {
+          setQuestDebugInfo(`Quest: Service worker OK for ${filename}`);
+          return { url: serviceWorkerUrl, filename };
+        } else {
+          setQuestDebugInfo(
+            `Quest: SW failed (${testResponse.status}), using data URL`
+          );
+        }
+      } catch {
+        setQuestDebugInfo(`Quest: SW error, using data URL for ${filename}`);
+      }
+
+      // Fallback to data URL if service worker fails
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const dataUrl = `data:${
+        file.type || "application/octet-stream"
+      };base64,${base64}`;
+      setQuestDebugInfo(
+        `Quest: Data URL created (${Math.round(dataUrl.length / 1024)}KB)`
+      );
+
+      return { url: dataUrl, filename };
+    } catch {
+      setQuestDebugInfo(`Quest: Error - using blob URL fallback`);
+      // Final fallback to blob URL
+      return {
+        url: URL.createObjectURL(file),
+        filename,
+      };
+    }
   } else {
-    console.log('Desktop browser detected, using blob URL for', filename);
-    
     // Use traditional blob URL for desktop
     return {
       url: URL.createObjectURL(file),
-      filename
+      filename,
     };
   }
 };

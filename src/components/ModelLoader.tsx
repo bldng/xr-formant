@@ -12,8 +12,13 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
+import {
+  cacheModel,
+  getCachedModelUrl,
+  isQuestOrAndroid,
+  processModelFile,
+} from "../utils/modelCache";
 import { CharacterPlayer } from "./Stage/CharacterPlayer";
-import { processModelFile, cacheModel, getCachedModelUrl, isQuestOrAndroid } from "../utils/modelCache";
 
 // GLTF type definitions
 interface GLTFBuffer {
@@ -86,7 +91,7 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   // Calculate model bounds considering the applied scale and position
   const scaledHeight = size.y * modelScale;
   const modelTopY = position[1] + scaledHeight;
-  
+
   // Update model bounds in context
   useEffect(() => {
     setModelBounds({
@@ -111,11 +116,11 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
     if (child instanceof THREE.Mesh) {
       child.castShadow = true;
       child.receiveShadow = true;
-      
+
       // Make materials double-sided to fix inside-out faces and transparency issues
       if (child.material) {
         if (Array.isArray(child.material)) {
-          child.material.forEach(mat => {
+          child.material.forEach((mat) => {
             mat.side = THREE.DoubleSide;
           });
         } else {
@@ -162,7 +167,12 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   return (
     <>
       <RigidBody type="fixed" position={position} colliders="trimesh">
-        <group ref={modelRef} castShadow receiveShadow scale={[modelScale, modelScale, modelScale]}>
+        <group
+          ref={modelRef}
+          castShadow
+          receiveShadow
+          scale={[modelScale, modelScale, modelScale]}
+        >
           <primitive object={clonedScene} />
         </group>
       </RigidBody>
@@ -174,7 +184,11 @@ function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
 } // Context for sharing model state between components
 
 interface ModelContextType {
-  model: { url: string; position: [number, number, number]; filename?: string } | null;
+  model: {
+    url: string;
+    position: [number, number, number];
+    filename?: string;
+  } | null;
   setModel: (url: string, filename?: string) => void;
   isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
@@ -204,7 +218,10 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     filename?: string;
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
-  const [modelBounds, setModelBoundsState] = useState<{ height: number; topY: number }>();
+  const [modelBounds, setModelBoundsState] = useState<{
+    height: number;
+    topY: number;
+  }>();
   const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(
     null
   );
@@ -238,9 +255,12 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const setModelBounds = useCallback((bounds: { height: number; topY: number }) => {
-    setModelBoundsState(bounds);
-  }, []);
+  const setModelBounds = useCallback(
+    (bounds: { height: number; topY: number }) => {
+      setModelBoundsState(bounds);
+    },
+    []
+  );
 
   return (
     <ModelContext.Provider
@@ -419,7 +439,11 @@ export function ModelDropZone() {
                     if (isQuestOrAndroid()) {
                       // Cache image file and use service worker URL
                       const arrayBuffer = await imageFile.arrayBuffer();
-                      await cacheModel(imageFile.name, arrayBuffer, imageFile.type);
+                      await cacheModel(
+                        imageFile.name,
+                        arrayBuffer,
+                        imageFile.type
+                      );
                       const cachedUrl = getCachedModelUrl(imageFile.name);
                       return { ...image, uri: cachedUrl };
                     } else {
@@ -557,7 +581,26 @@ interface ModelControlsProps {
 
 export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setModel, model } = useModels();
+  const { setModel, model, isModelLoading } = useModels();
+  const [questDebugInfo, setQuestDebugInfo] = useState("");
+
+  // Listen for Quest debug updates
+  useEffect(() => {
+    const handleQuestDebug = (event: CustomEvent) => {
+      setQuestDebugInfo(event.detail);
+    };
+
+    window.addEventListener(
+      "questDebugUpdate",
+      handleQuestDebug as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        "questDebugUpdate",
+        handleQuestDebug as EventListener
+      );
+    };
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -574,7 +617,7 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
         const { url, filename } = await processModelFile(file);
         console.log("Processed file via input:", { url, filename });
         setModel(url, filename);
-        
+
         // Show warning for GLTF files that might have external dependencies
         if (file.name.toLowerCase().endsWith(".gltf")) {
           console.warn(
@@ -619,6 +662,10 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       </div>
       <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
         Model: {model ? <span className="font-bold">{model.url}</span> : "none"}
+        {isModelLoading && <div className="text-yellow-400">Loading...</div>}
+        {questDebugInfo && (
+          <div className="mt-1 text-green-400">{questDebugInfo}</div>
+        )}
       </div>
       <input
         ref={fileInputRef}

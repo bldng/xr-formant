@@ -651,6 +651,8 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
                 );
                 if (modelFile) {
                   setModel(`/models/${modelFile.filename}`, modelFile.filename);
+                  // Blur the select to prevent keyboard controls interference
+                  e.target.blur();
                 }
               }
             }}

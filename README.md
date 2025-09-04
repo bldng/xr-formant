@@ -4,7 +4,7 @@
 
 This immersive XR tool invites spatial practitioners to explore how built environments are perceived through different physical and sensory conditions. By experiencing architectural spaces through diverse embodied perspectives, designers can question assumptions, assess accessibility, and deepen understanding of how design decisions shape user experiences across a spectrum of bodies.
 
-Developed as part of the [ETH Zurich Design++ Summer School 2025](https://designplusplus.ethz.eth/education/summer-school/summerschool2025.html) - exploring how to design space through other bodies and embodied perspectives.
+Developed as part of the [ETH Zurich Design++ Summer School 2025](https://designplusplus.ethz.ch/education/summer-school/summerschool2025.html) - exploring how to design space through other bodies and embodied perspectives.
 
 ## Features
 

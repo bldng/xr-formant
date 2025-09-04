@@ -14,7 +14,7 @@ export function AboutPage() {
       <p className="mb-4">
         Developed as part of the{" "}
         <a
-          href="https://designplusplus.ethz.eth/education/summer-school/summerschool2025.html"
+          href="https://designplusplus.ethz.ch/education/summer-school/summerschool2025.html"
           className="text-blue-600 underline hover:text-blue-800"
           target="_blank"
           rel="noopener noreferrer"

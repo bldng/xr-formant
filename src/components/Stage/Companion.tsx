@@ -25,7 +25,7 @@ export function Companion({
   squeezeModeRef,
 }: CompanionProps) {
   const companionRef = useRef<RapierRigidBody>(null);
-  const [position] = useState(new THREE.Vector3(-22, 2, -2));
+  const [position, setPosition] = useState(new THREE.Vector3(-22, 4, -2));
 
   // Companion controls
   const { enabled, followDistance, companionType, size, height, followSpeed } =
@@ -65,7 +65,7 @@ export function Companion({
     []
   );
 
-  // Initialize character controller
+  // Initialize character controller and sync position with player when enabled
   useEffect(() => {
     if (world && rapier) {
       const controller = world.createCharacterController(
@@ -93,6 +93,17 @@ export function Companion({
       };
     }
   }, [world, rapier, slopeSettings]);
+
+  // Sync companion spawn position with player when first enabled
+  useEffect(() => {
+    if (enabled && playerRef.current) {
+      const playerPos = playerRef.current.translation();
+      // Add a small delay to ensure physics world is properly initialized
+      setTimeout(() => {
+        setPosition(new THREE.Vector3(playerPos.x - 3, playerPos.y + 5, playerPos.z - 2));
+      }, 100);
+    }
+  }, [enabled, playerRef]);
 
   useFrame((_, delta) => {
     if (
@@ -140,45 +151,13 @@ export function Companion({
       z: movementZ * delta,
     };
 
-    const collider = world.getCollider(companionRef.current.handle);
-    if (collider) {
-      if (squeezeModeRef.current && distanceToTarget > 0.1) {
-        // Squeeze mode: bypass collision checking for horizontal movement only
-        characterControllerRef.current.computeColliderMovement(
-          collider,
-          { x: 0, y: desiredMovement.y, z: 0 } // Only compute Y for ground/stairs
-        );
-        const computedMovement =
-          characterControllerRef.current.computedMovement();
-
-        // Apply squeeze movement: force X/Z movement but use physics Y
-        const currentPos = companionRef.current.translation();
-        companionRef.current.setTranslation(
-          {
-            x: currentPos.x + desiredMovement.x, // Force horizontal movement
-            y: currentPos.y + computedMovement.y, // Use physics Y for stairs/ground
-            z: currentPos.z + desiredMovement.z, // Force horizontal movement
-          },
-          true
-        );
-      } else {
-        // Normal physics-respecting movement with character controller
-        characterControllerRef.current.computeColliderMovement(
-          collider,
-          desiredMovement
-        );
-        const computedMovement =
-          characterControllerRef.current.computedMovement();
-
-        const velocity = {
-          x: computedMovement.x / delta,
-          y: computedMovement.y / delta,
-          z: computedMovement.z / delta,
-        };
-
-        companionRef.current.setLinvel(velocity, true);
-      }
-    }
+    // Apply velocity directly to the dynamic body
+    const currentVelocity = companionRef.current.linvel();
+    companionRef.current.setLinvel({
+      x: movementX,
+      y: currentVelocity.y, // Preserve Y velocity (gravity/jumping)
+      z: movementZ,
+    }, true);
   });
 
   // Get companion visual properties based on type
@@ -227,12 +206,10 @@ export function Companion({
     <>
       <RigidBody
         ref={companionRef}
-        type="kinematicVelocity"
+        type="dynamic"
         position={[position.x, position.y, position.z]}
         lockRotations={true}
         gravityScale={1} // Normal gravity
-        collisionGroups={2}
-        solverGroups={0xfffe} // Collides with everything except group 1 (player)
       >
         <CapsuleCollider args={[height * 0.5, visuals.width * 0.5]} />
 

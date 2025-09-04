@@ -16,6 +16,7 @@ import { useControls } from "leva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useModels } from "../ModelLoader";
+import { Companion } from "./Companion";
 
 type Controls =
   | "forward"
@@ -38,6 +39,7 @@ export function CharacterPlayer() {
   const [showDebug] = useState(true);
   const [debugText, setDebugText] = useState("");
   const [position, setPosition] = useState(new THREE.Vector3(-20, 2, 0));
+  const squeezeModeRef = useRef(false);
   const { registerTeleportHandler, modelBounds } = useModels();
 
   // Speed and stamina controls
@@ -106,6 +108,7 @@ export function CharacterPlayer() {
   const jumpVelocity = 3;
   const isJumpingRef = useRef(false);
   const textRef = useRef(null);
+  const companionTargetRef = useRef({ x: 0, y: 0, z: 0 });
 
   // Calculate XR locomotion speed based on stamina
   const getXRSpeed = () => {
@@ -264,6 +267,9 @@ export function CharacterPlayer() {
       squeeze,
     } = get();
 
+    // Update squeeze mode ref
+    squeezeModeRef.current = squeeze;
+
     // Get XR controller input with velocity-sensitive movement
     let xrMovementX = 0;
     let xrMovementZ = 0;
@@ -321,6 +327,15 @@ export function CharacterPlayer() {
 
     // Apply current rotation to the player group
     playerGroupRef.current.rotation.y = currentRotation;
+
+    // Update companion target position (2m in front at ground level)
+    const targetDistance = 2.0;
+    const playerPos = playerRef.current.translation();
+    companionTargetRef.current = {
+      x: playerPos.x - Math.sin(currentRotation) * targetDistance,
+      y: playerPos.y - 1.4, // Ground level (below player)
+      z: playerPos.z - Math.cos(currentRotation) * targetDistance,
+    };
 
     // Vestibular condition postural instability simulation
     if (vestibularEnabled && playerGroupRef.current) {
@@ -565,62 +580,82 @@ export function CharacterPlayer() {
   const cameraOffsetY = 0.8 * scale;
 
   return (
-    <RigidBody
-      ref={playerRef}
-      type="kinematicVelocity"
-      position={[position.x, position.y, position.z]}
-      lockRotations={true}
-    >
-      <CapsuleCollider args={[0.9, 0.5]} />
+    <>
+      <RigidBody
+        ref={playerRef}
+        type="kinematicVelocity"
+        position={[position.x, position.y, position.z]}
+        lockRotations={true}
+        collisionGroups={1}
+      >
+        <CapsuleCollider args={[0.9, 0.5]} />
 
-      {/* Player group - everything rotates together */}
-      <group ref={playerGroupRef}>
-        {/* Debug collision visualization */}
-        {showDebug && (
-          <group>
-            <Text
-              fontSize={0.1}
-              color="white"
-              position={[0, scale - 1 + cameraOffsetY, -2.5]}
-              ref={textRef}
-            >
-              {debugText}
-            </Text>
-          </group>
-        )}
+        {/* Player group - everything rotates together */}
+        <group ref={playerGroupRef}>
+          {/* Debug collision visualization */}
+          {showDebug && (
+            <group>
+              <Text
+                fontSize={0.1}
+                color="white"
+                position={[0, scale - 1 + cameraOffsetY, -2.5]}
+                ref={textRef}
+              >
+                {debugText}
+              </Text>
+            </group>
+          )}
 
-        {!session && (
-          <group name="player">
-            <mesh position={[0, 0, 0]}>
-              <capsuleGeometry args={[0.5, 0.9]} />
-              <meshBasicMaterial
-                color="magenta"
-                wireframe
-                transparent
-                opacity={0.5}
-              />
-            </mesh>
-            <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
-              <boxGeometry args={[1, 2, 1]} />
-              <meshBasicMaterial color="teal" transparent opacity={0.8} />
-            </mesh>
-            <mesh
-              position={[0, scale - 1 + (cameraOffsetY - 0.2), -0.45]}
-              scale={0.5}
-            >
-              <boxGeometry args={[0.1, 0.1, 1]} />
-              <meshBasicMaterial color="blue" />
-            </mesh>
+          {!session && (
+            <group name="player">
+              <mesh position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.5, 0.9]} />
+                <meshBasicMaterial
+                  color="magenta"
+                  wireframe
+                  transparent
+                  opacity={0.5}
+                />
+              </mesh>
+              <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
+                <boxGeometry args={[1, 2, 1]} />
+                <meshBasicMaterial color="teal" transparent opacity={0.8} />
+              </mesh>
+              <mesh
+                position={[0, scale - 1 + (cameraOffsetY - 0.2), -0.45]}
+                scale={0.5}
+              >
+                <boxGeometry args={[0.1, 0.1, 1]} />
+                <meshBasicMaterial color="blue" />
+              </mesh>
 
-            <mesh position={[0, scale - 1 + cameraOffsetY, -0.51]} scale={0.1}>
-              <sphereGeometry args={[1]} />
-              <meshBasicMaterial color="yellow" />
-            </mesh>
-          </group>
-        )}
-        {/* XR Origin for VR locomotion - positioned at camera height */}
-        {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
-      </group>
-    </RigidBody>
+              <mesh
+                position={[0, scale - 1 + cameraOffsetY, -0.51]}
+                scale={0.1}
+              >
+                <sphereGeometry args={[1]} />
+                <meshBasicMaterial color="yellow" />
+              </mesh>
+
+              {/* Companion target visualization (2m in front, at ground level) 
+              <mesh position={[0, -0.9, -2.5]} scale={0.1}>
+                <sphereGeometry args={[1]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+                */}
+            </group>
+          )}
+          {/* XR Origin for VR locomotion - positioned at camera height */}
+          {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
+        </group>
+      </RigidBody>
+
+      {/* Companion/Attachment */}
+      <Companion
+        playerRef={playerRef}
+        companionTargetRef={companionTargetRef}
+        squeezeModeRef={squeezeModeRef}
+      />
+    </>
   );
 }

@@ -16,6 +16,7 @@ import { useControls } from "leva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useModels } from "../ModelLoader";
+import { Companion } from "./Companion";
 
 type Controls =
   | "forward"
@@ -26,7 +27,8 @@ type Controls =
   | "shrink"
   | "rotateLeft"
   | "rotateRight"
-  | "jump";
+  | "jump"
+  | "squeeze";
 
 export function CharacterPlayer() {
   const playerRef = useRef<RapierRigidBody>(null);
@@ -37,11 +39,12 @@ export function CharacterPlayer() {
   const [showDebug] = useState(true);
   const [debugText, setDebugText] = useState("");
   const [position, setPosition] = useState(new THREE.Vector3(-20, 2, 0));
-  const { registerTeleportHandler } = useModels();
+  const squeezeModeRef = useRef(false);
+  const { registerTeleportHandler, modelBounds } = useModels();
 
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
-    useControls("Character Movement", {
+    useControls("Persona Movement", {
       staminaEnabled: false,
       maxWalkingSpeed: { value: 5, min: 1, max: 15, step: 0.5 },
       maxStamina: { value: 100, min: 50, max: 200, step: 10 },
@@ -105,6 +108,7 @@ export function CharacterPlayer() {
   const jumpVelocity = 3;
   const isJumpingRef = useRef(false);
   const textRef = useRef(null);
+  const companionTargetRef = useRef({ x: 0, y: 0, z: 0 });
 
   // Calculate XR locomotion speed based on stamina
   const getXRSpeed = () => {
@@ -153,6 +157,31 @@ export function CharacterPlayer() {
       isJumpingRef.current = false;
     }
   }, []);
+
+  // Update player position when model bounds change
+  useEffect(() => {
+    if (modelBounds && playerRef.current) {
+      // Position player above the model with some clearance
+      const playerHeight = 1.5; // Player capsule center height
+      const clearance = 2; // Extra space above model
+      const newY = modelBounds.topY + clearance + playerHeight;
+
+      const newPosition = new THREE.Vector3(0, newY, 0); // Spawn at model center
+      setPosition(newPosition);
+
+      // Apply to physics body
+      playerRef.current.setTranslation(
+        {
+          x: newPosition.x,
+          y: newPosition.y,
+          z: newPosition.z,
+        },
+        true
+      );
+
+      console.log("Player positioned above model at Y:", newY);
+    }
+  }, [modelBounds]);
 
   // Use XRControllerLocomotion to control the character RigidBody directly
   useXRControllerLocomotion(
@@ -235,7 +264,11 @@ export function CharacterPlayer() {
       rotateLeft,
       rotateRight,
       jump,
+      squeeze,
     } = get();
+
+    // Update squeeze mode ref
+    squeezeModeRef.current = squeeze;
 
     // Get XR controller input with velocity-sensitive movement
     let xrMovementX = 0;
@@ -294,6 +327,15 @@ export function CharacterPlayer() {
 
     // Apply current rotation to the player group
     playerGroupRef.current.rotation.y = currentRotation;
+
+    // Update companion target position (2m in front at ground level)
+    const targetDistance = 2.0;
+    const playerPos = playerRef.current.translation();
+    companionTargetRef.current = {
+      x: playerPos.x - Math.sin(currentRotation) * targetDistance,
+      y: playerPos.y - 1.4, // Ground level (below player)
+      z: playerPos.z - Math.cos(currentRotation) * targetDistance,
+    };
 
     // Vestibular condition postural instability simulation
     if (vestibularEnabled && playerGroupRef.current) {
@@ -475,26 +517,62 @@ export function CharacterPlayer() {
 
     const collider = world.getCollider(playerRef.current.handle);
     if (collider) {
-      characterControllerRef.current.computeColliderMovement(
-        collider,
-        desiredMovement
-      );
-      const computedMovement =
-        characterControllerRef.current.computedMovement();
-      const isGrounded = characterControllerRef.current.computedGrounded();
+      // Squeeze mode: bypass collision checking for forward movement only
+      if (squeeze && !session && forward) {
+        // First do normal collision detection to check ground
+        characterControllerRef.current.computeColliderMovement(
+          collider,
+          desiredMovement
+        );
+        const computedMovement =
+          characterControllerRef.current.computedMovement();
+        const isGrounded = characterControllerRef.current.computedGrounded();
 
-      if (isGrounded && velocityRef.current.y <= 0) {
-        velocityRef.current.y = 0;
-        isJumpingRef.current = false;
+        // Update grounded state and reset jump if needed
+        if (isGrounded && velocityRef.current.y <= 0) {
+          velocityRef.current.y = 0;
+          isJumpingRef.current = false;
+        }
+
+        // Apply squeeze movement: use computed Y movement but force forward X/Z movement
+        const currentPos = playerRef.current.translation();
+        playerRef.current.setTranslation(
+          {
+            x: currentPos.x + desiredMovement.x, // Force forward movement through walls
+            y: currentPos.y + computedMovement.y, // Use physics-computed Y for ground collision
+            z: currentPos.z + desiredMovement.z, // Force forward movement through walls
+          },
+          true
+        );
+
+        // Apply only Y velocity for gravity/jumping
+        playerRef.current.setLinvel(
+          { x: 0, y: computedMovement.y / delta, z: 0 },
+          true
+        );
+      } else {
+        // Normal physics-respecting movement
+        characterControllerRef.current.computeColliderMovement(
+          collider,
+          desiredMovement
+        );
+        const computedMovement =
+          characterControllerRef.current.computedMovement();
+        const isGrounded = characterControllerRef.current.computedGrounded();
+
+        if (isGrounded && velocityRef.current.y <= 0) {
+          velocityRef.current.y = 0;
+          isJumpingRef.current = false;
+        }
+
+        const velocity = {
+          x: computedMovement.x / delta,
+          y: computedMovement.y / delta,
+          z: computedMovement.z / delta,
+        };
+
+        playerRef.current.setLinvel(velocity, true);
       }
-
-      const velocity = {
-        x: computedMovement.x / delta,
-        y: computedMovement.y / delta,
-        z: computedMovement.z / delta,
-      };
-
-      playerRef.current.setLinvel(velocity, true);
     }
   });
 
@@ -502,62 +580,81 @@ export function CharacterPlayer() {
   const cameraOffsetY = 0.8 * scale;
 
   return (
-    <RigidBody
-      ref={playerRef}
-      type="kinematicVelocity"
-      position={[position.x, position.y, position.z]}
-      lockRotations={true}
-    >
-      <CapsuleCollider args={[0.9, 0.5]} />
+    <>
+      <RigidBody
+        ref={playerRef}
+        type="kinematicVelocity"
+        position={[position.x, position.y, position.z]}
+        lockRotations={true}
+        collisionGroups={1}
+      >
+        <CapsuleCollider args={[0.9, 0.5]} />
 
-      {/* Player group - everything rotates together */}
-      <group ref={playerGroupRef}>
-        {/* Debug collision visualization */}
-        {showDebug && (
-          <group>
-            <Text
-              fontSize={0.1}
-              color="white"
-              position={[0, scale - 1 + cameraOffsetY, -2.5]}
-              ref={textRef}
-            >
-              {debugText}
-            </Text>
-          </group>
-        )}
+        {/* Player group - everything rotates together */}
+        <group ref={playerGroupRef}>
+          {/* Debug collision visualization */}
+          {showDebug && (
+            <group>
+              <Text
+                fontSize={0.1}
+                color="white"
+                position={[0, scale - 1 + cameraOffsetY, -2.5]}
+                ref={textRef}
+              >
+                {debugText}
+              </Text>
+            </group>
+          )}
 
-        {!session && (
-          <group name="player">
-            <mesh position={[0, 0, 0]}>
-              <capsuleGeometry args={[0.5, 0.9]} />
-              <meshBasicMaterial
-                color="magenta"
-                wireframe
-                transparent
-                opacity={0.5}
-              />
-            </mesh>
-            <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
-              <boxGeometry args={[1, 2, 1]} />
-              <meshBasicMaterial color="teal" transparent opacity={0.8} />
-            </mesh>
-            <mesh
-              position={[0, scale - 1 + (cameraOffsetY - 0.2), -0.45]}
-              scale={0.5}
-            >
-              <boxGeometry args={[0.1, 0.1, 1]} />
-              <meshBasicMaterial color="blue" />
-            </mesh>
+          {!session && (
+            <group name="player">
+              <mesh position={[0, 0, 0]}>
+                <capsuleGeometry args={[0.5, 0.9]} />
+                <meshBasicMaterial
+                  color="magenta"
+                  wireframe
+                  transparent
+                  opacity={0.5}
+                />
+              </mesh>
+              <mesh scale={[1, scale, 1]} position={[0, scale - 1, 0]}>
+                <boxGeometry args={[1, 2, 1]} />
+                <meshBasicMaterial color="teal" transparent opacity={0.8} />
+              </mesh>
+              <mesh
+                position={[0, scale - 1 + (cameraOffsetY - 0.2), -0.45]}
+                scale={0.5}
+              >
+                <boxGeometry args={[0.1, 0.1, 1]} />
+                <meshBasicMaterial color="blue" />
+              </mesh>
 
-            <mesh position={[0, scale - 1 + cameraOffsetY, -0.51]} scale={0.1}>
-              <sphereGeometry args={[1]} />
-              <meshBasicMaterial color="yellow" />
-            </mesh>
-          </group>
-        )}
-        {/* XR Origin for VR locomotion - positioned at camera height */}
-        {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
-      </group>
-    </RigidBody>
+              <mesh
+                position={[0, scale - 1 + cameraOffsetY, -0.51]}
+                scale={0.1}
+              >
+                <sphereGeometry args={[1]} />
+                <meshBasicMaterial color="yellow" />
+              </mesh>
+
+              {/* Companion target visualization (2m in front, at ground level) 
+              <mesh position={[0, -0.9, -2.5]} scale={0.1}>
+                <sphereGeometry args={[1]} />
+                <meshBasicMaterial color="red" />
+              </mesh>
+                */}
+            </group>
+          )}
+          {/* XR Origin for VR locomotion - positioned at camera height */}
+          {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
+        </group>
+      </RigidBody>
+
+      {/* Companion/Attachment */}
+      <Companion
+        playerRef={playerRef}
+        companionTargetRef={companionTargetRef}
+      />
+    </>
   );
 }

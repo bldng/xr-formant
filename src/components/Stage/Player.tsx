@@ -17,7 +17,8 @@ type Controls =
   | "shrink"
   | "rotateLeft"
   | "rotateRight"
-  | "jump";
+  | "jump"
+  | "squeeze";
 
 export function Player() {
   const playerRef = useRef<RapierRigidBody>(null);
@@ -40,6 +41,7 @@ export function Player() {
       rotateLeft,
       rotateRight,
       jump,
+      squeeze,
     } = get();
 
     // Handle rotation
@@ -89,7 +91,23 @@ export function Player() {
       velocity.z -= Math.sin(rotation) * moveSpeed;
     }
 
-    playerRef.current.setLinvel(velocity, true);
+    // Apply velocity - use squeeze mode if modifier is held
+    if (squeeze && (forward || back || left || right)) {
+      // Squeeze mode: Apply movement directly to position (but not falling through the floor)
+      const currentPos = playerRef.current.translation();
+      const deltaTime = 0.016; // Approximate 60fps frame time
+      playerRef.current.setTranslation(
+        {
+          x: currentPos.x + velocity.x * deltaTime,
+          y: currentPos.y, // NO TOUCHING!!
+          z: currentPos.z + velocity.z * deltaTime,
+        },
+        true
+      );
+    } else {
+      // Normal physics-respecting movement
+      playerRef.current.setLinvel(velocity, true);
+    }
 
     // Apply rotation to the rigid body using proper quaternion
     const quaternion = new THREE.Quaternion();

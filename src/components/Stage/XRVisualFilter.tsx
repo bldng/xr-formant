@@ -78,6 +78,10 @@ export function XRVisualFilter() {
           boxRef.current.position.set(0, 0, -1); // 1 unit in front in camera space
           boxRef.current.rotation.set(0, 0, 0);
         }
+        boxRef.current.layers.set(0);
+        boxRef.current.traverse((child) => {
+          child.layers.set(0);
+        });
       } else {
         // In non-XR mode, position filters relative to player camera
         const player = state.scene.getObjectByName("player");

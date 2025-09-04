@@ -3,6 +3,7 @@ import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { TeleportTarget } from "@react-three/xr";
 import { useControls } from "leva";
 import {
+  Component,
   createContext,
   Suspense,
   useCallback,
@@ -10,8 +11,11 @@ import {
   useEffect,
   useRef,
   useState,
+  type ErrorInfo,
+  type ReactNode,
 } from "react";
 import * as THREE from "three";
+import { processModelFile } from "../utils/modelCache";
 import { CharacterPlayer } from "./Stage/CharacterPlayer";
 
 // GLTF type definitions
@@ -35,13 +39,23 @@ interface GLTFData {
 interface GLTFModelProps {
   url: string;
   position?: [number, number, number];
+  filename?: string;
 }
 
-function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
+function GLTFModel({ url, position = [0, 0, 0], filename }: GLTFModelProps) {
   console.log("GLTFModel component rendering with URL:", url);
   const { scene } = useGLTF(url);
   const modelRef = useRef<THREE.Group>(null!);
-  const { setModelLoading, teleportPlayer } = useModels();
+  const { setModelLoading, teleportPlayer, setModelBounds } = useModels();
+
+  // Extract scale from filename using @Nx pattern (e.g., @2x, @0.5x, @10x)
+  const getScaleFromFilename = (filename?: string): number => {
+    if (!filename) return 2; // Default scale
+    const scaleMatch = filename.match(/@(\d*\.?\d+)x/i);
+    return scaleMatch ? parseFloat(scaleMatch[1]) : 2; // Default scale if no match
+  };
+
+  const modelScale = getScaleFromFilename(filename);
 
   // Teleportation controls
   const { showTeleportTargets } = useControls("Teleportation", {
@@ -72,18 +86,45 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   clonedScene.position.copy(center).multiplyScalar(-1);
   clonedScene.position.y = size.y / 2 - center.y; // Move bottom to y=0
 
+  // Calculate model bounds considering the applied scale and position
+  const scaledHeight = size.y * modelScale;
+  const modelTopY = position[1] + scaledHeight;
+
+  // Update model bounds in context
+  useEffect(() => {
+    setModelBounds({
+      height: scaledHeight,
+      topY: modelTopY,
+    });
+  }, [scaledHeight, modelTopY, setModelBounds]);
+
   console.log(
     "Model positioned on ground, size:",
     size,
+    "scaled height:",
+    scaledHeight,
+    "top Y:",
+    modelTopY,
     "center offset:",
     center
   );
 
-  // Enable shadows on all meshes in the model
+  // Enable shadows and configure materials on all meshes in the model
   clonedScene.traverse((child) => {
     if (child instanceof THREE.Mesh) {
       child.castShadow = true;
       child.receiveShadow = true;
+
+      // Make materials double-sided to fix inside-out faces and transparency issues
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach((mat) => {
+            mat.side = THREE.DoubleSide;
+          });
+        } else {
+          child.material.side = THREE.DoubleSide;
+        }
+      }
     }
   });
 
@@ -124,7 +165,12 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
   return (
     <>
       <RigidBody type="fixed" position={position} colliders="trimesh">
-        <group ref={modelRef} castShadow receiveShadow scale={[2, 2, 2]}>
+        <group
+          ref={modelRef}
+          castShadow
+          receiveShadow
+          scale={[modelScale, modelScale, modelScale]}
+        >
           <primitive object={clonedScene} />
         </group>
       </RigidBody>
@@ -133,17 +179,52 @@ function GLTFModel({ url, position = [0, 0, 0] }: GLTFModelProps) {
       {showTeleportTargets && teleportPlanes}
     </>
   );
-} // Context for sharing model state between components
+}
+
+// Error Boundary to catch GLTF loading errors and show debug info
+class ModelErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("GLTF Model loading error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null; // Don't render anything, let the app continue
+    }
+
+    return this.props.children;
+  }
+}
+
+// Context for sharing model state between components
 
 interface ModelContextType {
-  model: { url: string; position: [number, number, number] } | null;
-  setModel: (url: string) => void;
+  model: {
+    url: string;
+    position: [number, number, number];
+    filename?: string;
+  } | null;
+  setModel: (url: string, filename?: string) => void;
   isModelLoading: boolean;
   setModelLoading: (url: string, isLoading: boolean) => void;
   teleportPlayer?: (position: THREE.Vector3) => void;
   registerTeleportHandler?: (
     handler: (position: THREE.Vector3) => void
   ) => void;
+  modelBounds?: { height: number; topY: number };
+  setModelBounds: (bounds: { height: number; topY: number }) => void;
 }
 
 const ModelContext = createContext<ModelContextType | null>(null);
@@ -161,18 +242,24 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
   const [model, setModelState] = useState<{
     url: string;
     position: [number, number, number];
+    filename?: string;
   } | null>(null);
   const [isModelLoading, setIsModelLoading] = useState(false);
+  const [modelBounds, setModelBoundsState] = useState<{
+    height: number;
+    topY: number;
+  }>();
   const teleportHandlerRef = useRef<((position: THREE.Vector3) => void) | null>(
     null
   );
 
-  const setModel = useCallback((url: string) => {
-    console.log("Setting model with URL:", url);
+  const setModel = useCallback((url: string, filename?: string) => {
+    console.log("Setting model with URL:", url, "filename:", filename);
     setIsModelLoading(true);
     const newModel = {
       url,
       position: [0, 0, 0] as [number, number, number], // Spawn at origin on the floor
+      filename,
     };
     console.log("New model:", newModel);
     setModelState(newModel);
@@ -195,6 +282,13 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const setModelBounds = useCallback(
+    (bounds: { height: number; topY: number }) => {
+      setModelBoundsState(bounds);
+    },
+    []
+  );
+
   return (
     <ModelContext.Provider
       value={{
@@ -204,6 +298,8 @@ export function ModelProvider({ children }: { children: React.ReactNode }) {
         setModelLoading,
         teleportPlayer,
         registerTeleportHandler,
+        modelBounds,
+        setModelBounds,
       }}
     >
       {children}
@@ -304,12 +400,20 @@ export function ModelDropZone() {
       if (gltfFile) {
         console.log("GLTF file found:", gltfFile.name);
 
-        // For GLB files (self-contained), we can use them directly
+        // For GLB files (self-contained), use the new caching system
         if (gltfFile.name.toLowerCase().endsWith(".glb")) {
-          const url = URL.createObjectURL(gltfFile);
-          console.log("Created GLB URL:", url);
-          setModel(url);
-          return;
+          try {
+            const { url, filename } = await processModelFile(gltfFile);
+            console.log("Processed GLB file:", { url, filename });
+            setModel(url, filename);
+            return;
+          } catch (error) {
+            console.error("Error processing GLB file:", error);
+            // Fallback to blob URL
+            const url = URL.createObjectURL(gltfFile);
+            setModel(url, gltfFile.name);
+            return;
+          }
         }
 
         // For GLTF files with external dependencies, we need to handle all files
@@ -324,7 +428,7 @@ export function ModelDropZone() {
           const gltfContent = await gltfFile.text();
           const gltfData: GLTFData = JSON.parse(gltfContent);
 
-          // Create blob URLs for all referenced files
+          // Create URLs for all referenced files (using appropriate method for platform)
           const modifiedGltfData = { ...gltfData };
 
           // Handle buffers (bin files)
@@ -334,6 +438,7 @@ export function ModelDropZone() {
                 if (buffer.uri && !buffer.uri.startsWith("data:")) {
                   const binFile = fileMap.get(buffer.uri);
                   if (binFile) {
+                    // Use blob URL for all platforms
                     const blobUrl = URL.createObjectURL(binFile);
                     return { ...buffer, uri: blobUrl };
                   }
@@ -350,6 +455,7 @@ export function ModelDropZone() {
                 if (image.uri && !image.uri.startsWith("data:")) {
                   const imageFile = fileMap.get(image.uri);
                   if (imageFile) {
+                    // Use blob URL for all platforms
                     const blobUrl = URL.createObjectURL(imageFile);
                     return { ...image, uri: blobUrl };
                   }
@@ -359,22 +465,30 @@ export function ModelDropZone() {
             );
           }
 
-          // Create a new blob with the modified GLTF content
+          // Create final GLTF file URL
           const modifiedGltfBlob = new Blob(
             [JSON.stringify(modifiedGltfData)],
             {
               type: "application/json",
             }
           );
+
+          // Use blob URL for all platforms
           const gltfUrl = URL.createObjectURL(modifiedGltfBlob);
 
           console.log("Created modified GLTF URL:", gltfUrl);
-          setModel(gltfUrl);
+          setModel(gltfUrl, gltfFile.name);
         } catch (error) {
           console.error("Error processing GLTF files:", error);
           // Fallback to simple URL creation
-          const url = URL.createObjectURL(gltfFile);
-          setModel(url);
+          try {
+            const { url, filename } = await processModelFile(gltfFile);
+            setModel(url, filename);
+          } catch (fallbackError) {
+            console.error("Fallback also failed:", fallbackError);
+            const url = URL.createObjectURL(gltfFile);
+            setModel(url, gltfFile.name);
+          }
         }
       } else {
         console.log(
@@ -423,11 +537,14 @@ export function ModelRenderer({ children }: { children?: React.ReactNode }) {
       <Physics paused={isModelLoading}>
         <Suspense fallback={null}>
           {model && (
-            <GLTFModel
-              key={model.url}
-              url={model.url}
-              position={model.position}
-            />
+            <ModelErrorBoundary>
+              <GLTFModel
+                key={model.url}
+                url={model.url}
+                position={model.position}
+                filename={model.filename}
+              />
+            </ModelErrorBoundary>
           )}
         </Suspense>
 
@@ -464,7 +581,18 @@ interface ModelControlsProps {
 
 export function ModelControls({ onEnterVR }: ModelControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { setModel, model } = useModels();
+  const { setModel, model, isModelLoading } = useModels();
+  const [availableModels, setAvailableModels] = useState<
+    Array<{ name: string; filename: string }>
+  >([]);
+
+  // Load available models from models.json
+  useEffect(() => {
+    fetch("/models/models.json")
+      .then((res) => res.json())
+      .then((models) => setAvailableModels(models))
+      .catch(() => setAvailableModels([]));
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -476,52 +604,91 @@ export function ModelControls({ onEnterVR }: ModelControlsProps) {
       (file.name.toLowerCase().endsWith(".gltf") ||
         file.name.toLowerCase().endsWith(".glb"))
     ) {
-      // For GLB files (self-contained), we can use them directly
-      if (file.name.toLowerCase().endsWith(".glb")) {
+      try {
+        // Use the new caching system for both GLB and GLTF files
+        const { url, filename } = await processModelFile(file);
+        console.log("Processed file via input:", { url, filename });
+        setModel(url, filename);
+
+        // Show warning for GLTF files that might have external dependencies
+        if (file.name.toLowerCase().endsWith(".gltf")) {
+          console.warn(
+            "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
+          );
+        }
+      } catch (error) {
+        console.error("Error processing file:", error);
+        // Fallback to blob URL
         const url = URL.createObjectURL(file);
-        setModel(url);
-        return;
+        setModel(url, file.name);
       }
-
-      // For GLTF files, we need to handle potential external dependencies
-      // Note: File input only gives us one file, so this is a fallback
-      console.warn(
-        "GLTF file selected via file input. For best results with external dependencies, use drag & drop with all related files."
-      );
-      const url = URL.createObjectURL(file);
-      setModel(url);
     }
-  };
-
-  const handleLoadHafen = () => {
-    // Load the hafen.gltf model from the public folder
-    setModel("/hafen.gltf");
   };
 
   return (
     <div className="absolute z-20 top-4 left-4">
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
-        >
-          Load Model
-        </button>
-        <button
-          onClick={handleLoadHafen}
-          className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
-        >
-          Load Example
-        </button>
-        <button
-          onClick={onEnterVR}
-          className="px-4 py-1.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
-        >
-          Enter VR
-        </button>
+      <div className="flex flex-col gap-2 mb-2">
+        <div className="flex gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-1.5 text-white transition-colors rounded-lg shadow-lg bg-slate-500 hover:bg-slate-600"
+          >
+            Load Model
+          </button>
+          <button
+            onClick={onEnterVR}
+            className="px-4 py-1.5 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+          >
+            Enter VR
+          </button>
+        </div>
+        {availableModels.length > 0 && (
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                const modelFile = availableModels.find(
+                  (m) => m.filename === e.target.value
+                );
+                if (modelFile) {
+                  setModel(`/models/${modelFile.filename}`, modelFile.filename);
+                  // Blur the select to prevent keyboard controls interference
+                  e.target.blur();
+                }
+              }
+            }}
+            className="px-4 py-1.5 text-white bg-slate-500 rounded-lg shadow-lg hover:bg-slate-600 focus:bg-slate-600 focus:outline-none"
+            defaultValue=""
+          >
+            <option value="" className="text-gray-400">
+              Select a model...
+            </option>
+            {availableModels.map((modelItem) => (
+              <option
+                key={modelItem.filename}
+                value={modelItem.filename}
+                className="text-white bg-slate-600"
+              >
+                {modelItem.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
-      <div className="px-2 py-1 text-sm text-white rounded bg-black/50">
-        Model: {model ? <span className="font-bold">{model.url}</span> : "none"}
+      <div className="w-64 px-2 py-1 text-sm text-white rounded bg-black/50">
+        <div className="flex items-center gap-1">
+          <span className="flex-shrink-0">Model:</span>
+          {model ? (
+            <span
+              className="font-bold truncate max-w-[200px]"
+              title={model.filename || model.url}
+            >
+              {model.filename || model.url.split("/").pop() || model.url}
+            </span>
+          ) : (
+            "none"
+          )}
+        </div>
+        {isModelLoading && <div className="text-yellow-400">Loading...</div>}
       </div>
       <input
         ref={fileInputRef}

@@ -654,7 +654,6 @@ export function CharacterPlayer() {
       <Companion
         playerRef={playerRef}
         companionTargetRef={companionTargetRef}
-        squeezeModeRef={squeezeModeRef}
       />
     </>
   );

@@ -16,13 +16,11 @@ interface CompanionProps {
     y: number;
     z: number;
   }>;
-  squeezeModeRef: React.MutableRefObject<boolean>;
 }
 
 export function Companion({
   playerRef,
   companionTargetRef,
-  squeezeModeRef,
 }: CompanionProps) {
   const companionRef = useRef<RapierRigidBody>(null);
   const [position, setPosition] = useState(new THREE.Vector3(-22, 4, -2));
@@ -100,12 +98,14 @@ export function Companion({
       const playerPos = playerRef.current.translation();
       // Add a small delay to ensure physics world is properly initialized
       setTimeout(() => {
-        setPosition(new THREE.Vector3(playerPos.x - 3, playerPos.y + 5, playerPos.z - 2));
+        setPosition(
+          new THREE.Vector3(playerPos.x - 3, playerPos.y + 5, playerPos.z - 2)
+        );
       }, 100);
     }
   }, [enabled, playerRef]);
 
-  useFrame((_, delta) => {
+  useFrame(() => {
     if (
       !enabled ||
       !companionRef.current ||
@@ -144,20 +144,16 @@ export function Companion({
       movementZ = directionZ * followSpeed * speedMultiplier;
     }
 
-    // Use character controller for physics-based movement with proper delta time
-    const desiredMovement = {
-      x: movementX * delta,
-      y: -9.81 * delta, // Apply proper gravity
-      z: movementZ * delta,
-    };
-
     // Apply velocity directly to the dynamic body
     const currentVelocity = companionRef.current.linvel();
-    companionRef.current.setLinvel({
-      x: movementX,
-      y: currentVelocity.y, // Preserve Y velocity (gravity/jumping)
-      z: movementZ,
-    }, true);
+    companionRef.current.setLinvel(
+      {
+        x: movementX,
+        y: currentVelocity.y, // Preserve Y velocity (gravity/jumping)
+        z: movementZ,
+      },
+      true
+    );
   });
 
   // Get companion visual properties based on type

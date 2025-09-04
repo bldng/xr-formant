@@ -658,8 +658,8 @@ export function CharacterPlayer() {
                 */}
             </group>
           )}
-          {/* XR Origin for VR locomotion - positioned at camera height */}
-          {session && <XROrigin position={[0, scale - 1 + cameraOffsetY, 0]} />}
+          {/* XR Origin for VR locomotion - positioned at scaled player base */}
+          {session && <XROrigin position={[0, (scale - 1) * 2 - 0.9, 0]} />}
         </group>
       </RigidBody>
 

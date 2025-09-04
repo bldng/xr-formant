@@ -12,7 +12,7 @@ import {
   useXRInputSourceState,
   XROrigin,
 } from "@react-three/xr";
-import { useControls } from "leva";
+import { monitor, useControls } from "leva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useModels } from "../ModelLoader";
@@ -42,9 +42,13 @@ export function CharacterPlayer() {
   const squeezeModeRef = useRef(false);
   const { registerTeleportHandler, modelBounds } = useModels();
 
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
+
   // Speed and stamina controls
   const { maxWalkingSpeed, staminaEnabled, maxStamina, staminaRegenRate } =
-    useControls("Persona Movement", {
+    useControls("Properties", {
+      "height (m)": monitor(scaleRef),
       staminaEnabled: false,
       maxWalkingSpeed: { value: 5, min: 1, max: 15, step: 0.5 },
       maxStamina: { value: 100, min: 50, max: 200, step: 10 },
@@ -53,11 +57,15 @@ export function CharacterPlayer() {
 
   // Vestibular condition controls
   const { vestibularEnabled, oscillationAmplitude, oscillationFrequency } =
-    useControls("Vestibular Condition", {
-      vestibularEnabled: false,
-      oscillationAmplitude: { value: 0.5, min: 0.1, max: 5.0, step: 0.1 },
-      oscillationFrequency: { value: 0.8, min: 0.1, max: 3.0, step: 0.1 },
-    });
+    useControls(
+      "Vestibular Condition",
+      {
+        vestibularEnabled: false,
+        oscillationAmplitude: { value: 0.5, min: 0.1, max: 5.0, step: 0.1 },
+        oscillationFrequency: { value: 0.8, min: 0.1, max: 3.0, step: 0.1 },
+      },
+      { collapsed: true }
+    );
 
   // Stamina state
   const [stamina, setStamina] = useState(maxStamina);

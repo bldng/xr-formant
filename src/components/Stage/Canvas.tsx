@@ -58,19 +58,23 @@ type EnvironmentPreset =
   | "park";
 
 export const Canvas = () => {
-  const { environment } = useControls("Environment", {
-    environment: {
-      value: "sunset" as EnvironmentPreset,
-      options: [
-        "sunset",
-        "forest",
-        "city",
-        "dawn",
-        "night",
-        "park",
-      ] as EnvironmentPreset[],
+  const { environment } = useControls(
+    "Environment",
+    {
+      environment: {
+        value: "sunset" as EnvironmentPreset,
+        options: [
+          "sunset",
+          "forest",
+          "city",
+          "dawn",
+          "night",
+          "park",
+        ] as EnvironmentPreset[],
+      },
     },
-  });
+    { collapsed: true, order: 10 }
+  );
   return (
     <>
       <ModelControls onEnterVR={() => store.enterVR()} />

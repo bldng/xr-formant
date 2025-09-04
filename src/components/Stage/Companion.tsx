@@ -18,10 +18,7 @@ interface CompanionProps {
   }>;
 }
 
-export function Companion({
-  playerRef,
-  companionTargetRef,
-}: CompanionProps) {
+export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
   const companionRef = useRef<RapierRigidBody>(null);
   const [position, setPosition] = useState(new THREE.Vector3(-22, 4, -2));
 
@@ -40,7 +37,7 @@ export function Companion({
         size: { value: 0.8, min: 0.3, max: 2.0, step: 0.1 },
         height: { value: 1.0, min: 0.5, max: 2.5, step: 0.1 },
       },
-      { collapsed: true }
+      { collapsed: true, order: 10 }
     );
 
   // Access Rapier world and API

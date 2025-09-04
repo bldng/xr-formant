@@ -34,7 +34,7 @@ export function CharacterPlayer() {
   const playerRef = useRef<RapierRigidBody>(null);
   const playerGroupRef = useRef<THREE.Group>(null);
   const [, get] = useKeyboardControls<Controls>();
-  const [scale, setScale] = useState(0.5);
+  const [scale, setScale] = useState(1.65);
   const [rotation, setRotation] = useState(0);
   const [showDebug] = useState(true);
   const [debugText, setDebugText] = useState("");

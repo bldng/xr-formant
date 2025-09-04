@@ -90,8 +90,8 @@ export function CharacterPlayer() {
       controllerOffset: 0.01,
       maxSlopeClimbAngle: 50,
       minSlopeSlideAngle: 55,
-      autostepHeight: 0.7,
-      autostepMinWidth: 0.05,
+      autostepHeight: 0.25,
+      autostepMinWidth: 0.15,
       snapToGroundDistance: 0.3,
     }),
     []

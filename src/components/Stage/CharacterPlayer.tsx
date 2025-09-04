@@ -365,6 +365,11 @@ export function CharacterPlayer() {
       try {
         // Get XR camera (head) direction for movement only
         const xrCamera = gl.xr.getCamera();
+
+        // Set XR camera near plane for minimal clipping
+        xrCamera.near = 0.005;
+        xrCamera.updateProjectionMatrix();
+
         const headDirection = new THREE.Vector3();
         const e = xrCamera.matrixWorld.elements;
         headDirection.set(-e[8], -e[9], -e[10]).normalize();

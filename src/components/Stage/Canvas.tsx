@@ -1,6 +1,7 @@
 import { KeyboardControls, OrbitControls, Stage } from "@react-three/drei";
 import { Canvas as R3FCanvas } from "@react-three/fiber";
 import { createXRStore, XR } from "@react-three/xr";
+import { scaleLinear } from "@visx/scale";
 import { useControls } from "leva";
 import { CameraHUD } from "../CameraHUD";
 import { ModelControls, ModelRenderer } from "../ModelLoader";
@@ -57,10 +58,19 @@ type EnvironmentPreset =
   | "night"
   | "park";
 
+const directionalLightExtent = { min: 0, max: 2 };
+const environmentIntensityExtent = { min: 0, max: 1 };
+
 export const Canvas = () => {
-  const { environment } = useControls(
+  const { environment, brightness } = useControls(
     "Environment",
     {
+      brightness: {
+        value: 0.65,
+        step: 0.01,
+        min: 0,
+        max: 1,
+      },
       environment: {
         value: "sunset" as EnvironmentPreset,
         options: [
@@ -75,6 +85,17 @@ export const Canvas = () => {
     },
     { collapsed: true, order: 10 }
   );
+
+  const directionalLightScale = scaleLinear({
+    domain: [0, 1],
+    range: [directionalLightExtent.min, directionalLightExtent.max],
+  });
+
+  const environmentIntensityScale = scaleLinear({
+    domain: [0, 1],
+    range: [environmentIntensityExtent.min, environmentIntensityExtent.max],
+  });
+
   return (
     <>
       <ModelControls onEnterVR={() => store.enterVR()} />
@@ -95,7 +116,7 @@ export const Canvas = () => {
           <XR store={store}>
             <directionalLight
               position={[10, 15, 8]}
-              intensity={2}
+              intensity={directionalLightScale(brightness)}
               castShadow
               shadow-mapSize-width={4096}
               shadow-mapSize-height={4096}
@@ -110,18 +131,20 @@ export const Canvas = () => {
             <Stage
               environment={{
                 preset: environment,
+                backgroundIntensity: environmentIntensityScale(brightness) * 2,
+                environmentIntensity: environmentIntensityScale(brightness),
                 blur: 10,
                 background: true,
               }}
               preset="rembrandt"
-              shadows={false}
-              intensity={0.5}
+              shadows={true}
               adjustCamera={true}
             >
               <ModelRenderer>
                 <></>
               </ModelRenderer>
             </Stage>
+
             <CameraHUD />
             <OrbitControls />
             <XRVisualFilter />

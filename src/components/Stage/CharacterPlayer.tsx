@@ -675,6 +675,7 @@ export function CharacterPlayer() {
         <Companion
           playerRef={playerRef}
           companionTargetRef={companionTargetRef}
+          playerRotation={rotation}
         />
       </Suspense>
     </>

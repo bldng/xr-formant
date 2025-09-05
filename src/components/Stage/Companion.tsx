@@ -10,9 +10,18 @@ import { useControls } from "leva";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-function DogModel({ scale }: { scale: number }) {
+function DogModel({
+  scale,
+  rotation,
+  isMoving,
+}: {
+  scale: number;
+  rotation: number;
+  isMoving: boolean;
+}) {
   const { scene } = useGLTF("/dog.glb");
   const clonedScene = scene.clone();
+  const groupRef = useRef<THREE.Group>(null);
 
   // Calculate bounding box to position on ground
   const box = new THREE.Box3().setFromObject(clonedScene);
@@ -30,8 +39,29 @@ function DogModel({ scale }: { scale: number }) {
   // Position model so bottom sits on ground
   clonedScene.position.y = -center.y + size.y / 2;
 
+  // Smooth rotation interpolation
+  useFrame(() => {
+    if (groupRef.current) {
+      const targetRotation = rotation + Math.PI / 2; // 90° offset for model orientation
+      const currentRotation = groupRef.current.rotation.y;
+
+      // Calculate rotation difference and normalize
+      let rotationDiff = targetRotation - currentRotation;
+      if (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
+      if (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
+
+      // Apply smooth rotation with different speeds based on movement
+      const rotationSpeed = isMoving ? 0.12 : 0.06; // Faster when moving, slower when still
+      groupRef.current.rotation.y += rotationDiff * rotationSpeed;
+    }
+  });
+
   return (
-    <group scale={[scale, scale, scale]} position={[0, -size.y * scale * 0.7, 0]}>
+    <group
+      ref={groupRef}
+      scale={[scale * 1.5, scale * 1.5, scale * 1.5]}
+      position={[0, -size.y * scale * 1.2, 0]}
+    >
       <primitive object={clonedScene} />
     </group>
   );
@@ -44,10 +74,16 @@ interface CompanionProps {
     y: number;
     z: number;
   }>;
+  playerRotation: number;
 }
 
-export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
+export function Companion({
+  playerRef,
+  companionTargetRef,
+  playerRotation,
+}: CompanionProps) {
   const companionRef = useRef<RapierRigidBody>(null);
+  const companionGroupRef = useRef<THREE.Group>(null);
   const [position, setPosition] = useState(new THREE.Vector3(-22, 4, -2));
 
   // Companion controls
@@ -130,6 +166,9 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
     }
   }, [enabled, playerRef]);
 
+  const [dogRotation, setDogRotation] = useState(0);
+  const [isMovingToTarget, setIsMovingToTarget] = useState(false);
+
   useFrame(() => {
     if (
       !enabled ||
@@ -139,7 +178,7 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
     )
       return;
 
-    // Get companion position
+    // Get companion and player positions
     const companionPos = companionRef.current.translation();
 
     // Go to the red dot position (only X and Z, let gravity handle Y)
@@ -157,9 +196,15 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
     let movementZ = 0;
 
     if (distanceToTarget > 0.05) {
+      setIsMovingToTarget(true);
+
       // Reduced threshold for tighter following
       const directionX = (targetX - companionPos.x) / distanceToTarget;
       const directionZ = (targetZ - companionPos.z) / distanceToTarget;
+
+      // Calculate movement direction rotation for the dog (reversed to face forward)
+      const movementRotation = Math.atan2(-directionX, -directionZ);
+      setDogRotation(movementRotation);
 
       // Stronger attraction force - exponential scaling based on distance
       const baseAttraction = Math.pow(distanceToTarget / followDistance, 2) * 5;
@@ -167,6 +212,11 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
 
       movementX = directionX * followSpeed * speedMultiplier;
       movementZ = directionZ * followSpeed * speedMultiplier;
+    } else {
+      setIsMovingToTarget(false);
+
+      // Face the player when arrived at target
+      setDogRotation(playerRotation);
     }
 
     // Apply velocity directly to the dynamic body
@@ -234,9 +284,13 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
       >
         <CapsuleCollider args={[height * 0.5, visuals.width * 0.5]} />
 
-        <group>
+        <group ref={companionGroupRef}>
           {companionType === "service-dog-textured" ? (
-            <DogModel scale={size} />
+            <DogModel
+              scale={size}
+              rotation={dogRotation}
+              isMoving={isMovingToTarget}
+            />
           ) : (
             <>
               {visuals.shape === "capsule" && (

@@ -13,7 +13,14 @@ import {
   XROrigin,
 } from "@react-three/xr";
 import { monitor, useControls } from "leva";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import * as THREE from "three";
 import { useModels } from "../ModelLoader";
 import { Companion } from "./Companion";
@@ -664,10 +671,12 @@ export function CharacterPlayer() {
       </RigidBody>
 
       {/* Companion/Attachment */}
-      <Companion
-        playerRef={playerRef}
-        companionTargetRef={companionTargetRef}
-      />
+      <Suspense fallback={null}>
+        <Companion
+          playerRef={playerRef}
+          companionTargetRef={companionTargetRef}
+        />
+      </Suspense>
     </>
   );
 }

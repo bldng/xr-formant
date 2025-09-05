@@ -1,3 +1,4 @@
+import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import {
   CapsuleCollider,
@@ -8,6 +9,33 @@ import {
 import { useControls } from "leva";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+
+function DogModel({ scale }: { scale: number }) {
+  const { scene } = useGLTF("/dog.glb");
+  const clonedScene = scene.clone();
+
+  // Calculate bounding box to position on ground
+  const box = new THREE.Box3().setFromObject(clonedScene);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  // Configure the model
+  clonedScene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  // Position model so bottom sits on ground
+  clonedScene.position.y = -center.y + size.y / 2;
+
+  return (
+    <group scale={[scale, scale, scale]} position={[0, -size.y * scale * 0.7, 0]}>
+      <primitive object={clonedScene} />
+    </group>
+  );
+}
 
 interface CompanionProps {
   playerRef: React.RefObject<RapierRigidBody | null>;
@@ -30,11 +58,11 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
         enabled: false,
         companionType: {
           value: "service-dog",
-          options: ["service-dog", "pram", "suitcase"],
+          options: ["service-dog", "service-dog-textured", "pram", "suitcase"],
         },
         followDistance: { value: 2.0, min: 1.0, max: 5.0, step: 0.1 },
         followSpeed: { value: 3.0, min: 1.0, max: 8.0, step: 0.1 },
-        size: { value: 0.8, min: 0.3, max: 2.0, step: 0.1 },
+        size: { value: 1.2, min: 0.3, max: 2.0, step: 0.1 },
         height: { value: 1.0, min: 0.5, max: 2.5, step: 0.1 },
       },
       { collapsed: true, order: 10 }
@@ -207,30 +235,36 @@ export function Companion({ playerRef, companionTargetRef }: CompanionProps) {
         <CapsuleCollider args={[height * 0.5, visuals.width * 0.5]} />
 
         <group>
-          {visuals.shape === "capsule" && (
-            <mesh>
-              <capsuleGeometry
-                args={[visuals.width * 0.5, visuals.height, 4]}
-              />
-              <meshBasicMaterial
-                color={visuals.color}
-                transparent
-                opacity={0.8}
-              />
-            </mesh>
-          )}
+          {companionType === "service-dog-textured" ? (
+            <DogModel scale={size} />
+          ) : (
+            <>
+              {visuals.shape === "capsule" && (
+                <mesh>
+                  <capsuleGeometry
+                    args={[visuals.width * 0.5, visuals.height, 4]}
+                  />
+                  <meshBasicMaterial
+                    color={visuals.color}
+                    transparent
+                    opacity={0.8}
+                  />
+                </mesh>
+              )}
 
-          {visuals.shape === "box" && (
-            <mesh position={[0, visuals.height * 0.5, 0]}>
-              <boxGeometry
-                args={[visuals.width, visuals.height, visuals.depth]}
-              />
-              <meshBasicMaterial
-                color={visuals.color}
-                transparent
-                opacity={0.8}
-              />
-            </mesh>
+              {visuals.shape === "box" && (
+                <mesh position={[0, visuals.height * 0.5, 0]}>
+                  <boxGeometry
+                    args={[visuals.width, visuals.height, visuals.depth]}
+                  />
+                  <meshBasicMaterial
+                    color={visuals.color}
+                    transparent
+                    opacity={0.8}
+                  />
+                </mesh>
+              )}
+            </>
           )}
         </group>
       </RigidBody>

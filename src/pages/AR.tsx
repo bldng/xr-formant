@@ -2,7 +2,9 @@ import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR, XROrigin } from "@react-three/xr";
 import { XRVisualFilter } from "../components/Stage/XRVisualFilter";
 
-const store = createXRStore({});
+const store = createXRStore({
+  bounded: false,
+});
 
 const ARPage = () => {
   return (

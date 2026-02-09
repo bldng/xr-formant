@@ -48,7 +48,7 @@ export function XRVisualFilter() {
   } = useControls("Visual Layers", {
     glasses: { value: false },
 
-    blurEnabled: { value: false },
+    blurEnabled: { value: true },
     blurIntensity: { value: 5, min: 1.0, max: 10.0, step: 0.1 },
     vignette: { value: false },
     vignetteIntensity: { value: 40, min: 20, max: 90, step: 5 },
@@ -207,7 +207,7 @@ export function XRVisualFilter() {
       )}
 
       {blurEnabled && (
-        <mesh position={[0, 0, -0.1]}>
+        <mesh position={[0, 0, -0.8]}>
           <planeGeometry args={[4, 4]} />
           <meshPhysicalMaterial
             transmission={1.0}

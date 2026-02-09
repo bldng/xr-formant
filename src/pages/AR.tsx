@@ -2,7 +2,9 @@ import { Canvas } from "@react-three/fiber";
 import { createXRStore, XR, XROrigin } from "@react-three/xr";
 import { XRVisualFilter } from "../components/Stage/XRVisualFilter";
 
-const store = createXRStore({});
+const store = createXRStore({
+  bounded: false,
+});
 
 const ARPage = () => {
   return (
@@ -15,7 +17,9 @@ const ARPage = () => {
       >
         <XR store={store}>
           <XROrigin position={[0, 1.6, 0]}>
-            <XRVisualFilter />
+            <group scale={[3, 3, 1]} position={[0, 0, -0.5]}>
+              <XRVisualFilter />
+            </group>
           </XROrigin>
         </XR>
       </Canvas>
